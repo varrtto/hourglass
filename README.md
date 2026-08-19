@@ -9,12 +9,28 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Unmute in the Leva panel once music files exist (browser autoplay is muted by default).
+Open [http://localhost:3000](http://localhost:3000). The app boots to the **main menu**. Unmute in the Leva panel (Practice Gym) once music files exist (browser autoplay is muted by default).
+
+## Main menu
+
+Full-screen pixel-art underworld (`public/art/menu-bg.png`) with four actions:
+
+| Action | What it does |
+|---|---|
+| **Start new game** | Plays the gym as a run (no debug HUD, no Leva) |
+| **Practice Gym** | Current movement gym, including debug HUD and Leva tunables |
+| **Scoreboard** | Lists recorded runs (empty until a palace run is saved) |
+| **Exit** | Stills the hourglass; browsers usually block `window.close()` on a normal tab |
+
+Arrows / WASD select · Enter confirm. **Esc** from play, gym, or scoreboard returns to the menu.
 
 ## Controls
 
 | Action | Keyboard | Gamepad |
 |---|---|---|
+| Menu select | Arrows / WASD | — |
+| Menu confirm | Enter / Space | — |
+| Back to menu | Esc | — |
 | Move | Arrows / WASD | D-pad / left stick |
 | Run | Shift | B / X |
 | Jump | Space / J / Z | A |
@@ -25,7 +41,7 @@ Open [http://localhost:3000](http://localhost:3000). Unmute in the Leva panel on
 
 Walk vs run: without Shift you walk (short jump). Hold Shift to run and clear 3-tile gaps.
 
-Fall rules (tunable in Leva): **1 story** is safe, **2 stories** stun + lose HP, **3 stories** (or spikes) kill. Jump / R to respawn.
+Fall rules (tunable in Leva, Practice Gym): **1 story** is safe, **2 stories** stun + lose HP, **3 stories** (or spikes) kill. Jump / R to respawn.
 
 ## Gym layout (left → right)
 
@@ -38,6 +54,12 @@ Fall rules (tunable in Leva): **1 story** is safe, **2 stories** stun + lose HP,
 - 2-story landing pad
 - Spike shaft on the far right (3-story death)
 - Ledge “ladder” beside the shaft to climb back
+
+## Menu art
+
+The title screen uses `public/art/menu-bg.png` (Orpheus descending into Hades for Eurydice, pixel art). It is drawn `cover` / full viewport; keep a dark left side so the gold menu type stays readable.
+
+The earlier palace painting is kept at `public/art/menu-bg-palace.png`.
 
 ## Art pipeline (Aseprite)
 
@@ -63,7 +85,7 @@ public/audio/sfx/hang.wav
 public/audio/sfx/climb.wav
 ```
 
-Prefer `.ogg` for loops and short `.wav` for SFX. Toggle mute in Leva; `src/game/audio/bus.ts` is the only Howler entry point.
+Prefer `.ogg` for loops and short `.wav` for SFX. Toggle mute in Leva (Practice Gym); `src/game/audio/bus.ts` is the only Howler entry point.
 
 ## Levels (Tiled)
 
@@ -91,9 +113,11 @@ Keep `src/game/player/fsm.ts` as the source of truth; only replace meshes in `sr
 
 ## Code map
 
+- `src/game/GameShell.tsx` — screen router (menu / play / gym / scoreboard / exit)
+- `src/game/menu/` — main menu, scoreboard, full-screen backdrop
 - `src/game/loop.ts` — 60 Hz fixed step
 - `src/game/input.ts` — keyboard + Gamepad API, edge-triggered jump
 - `src/game/player/fsm.ts` — PoP kinematic controller
-- `src/game/store.ts` — Zustand (pause, mute, Leva tunables, debug HUD)
+- `src/game/store.ts` — Zustand (screen, pause, mute, Leva tunables, debug HUD, scores)
 - `src/game/queries.ts` — TanStack Query fetchers for level / sprites / audio
 - `src/game/render/GameCanvas.tsx` — R3F ortho camera, integer zoom

@@ -42,7 +42,7 @@ export function ControlsHint() {
     <div className="pointer-events-none absolute bottom-3 left-1/2 w-[min(720px,92vw)] -translate-x-1/2 text-center font-mono text-[10px] leading-4 text-amber-100/70">
       Arrows / WASD move · Shift run · Space / J jump · Down hang-drop / crouch ·
       Up climb · Up+Jump grab ledge above · Edge + Down+Jump climb down · R
-      reset · P pause
+      reset · P pause · Esc menu
     </div>
   );
 }

@@ -16,10 +16,11 @@ import { TuningPanel } from "./render/TuningPanel";
 import { loadAudioBank, playMusic, setMuted, stopMusic } from "./audio/bus";
 import { useGameStore } from "./store";
 
-export function GameApp() {
+export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
   const levelId = useGameStore((s) => s.levelId);
   const muted = useGameStore((s) => s.muted);
   const [input] = useState(() => new InputController());
+  const practice = mode === "practice";
 
   const levelQuery = useQuery({
     queryKey: queryKeys.level(levelId),
@@ -59,6 +60,8 @@ export function GameApp() {
     else playMusic("gym");
   }, [muted]);
 
+  useEffect(() => () => stopMusic(), []);
+
   const level = useMemo(
     () => (levelQuery.data ? tiledToLevel(levelId, levelQuery.data) : null),
     [levelId, levelQuery.data],
@@ -66,7 +69,7 @@ export function GameApp() {
 
   return (
     <div className="relative h-dvh w-full bg-[#0e0a08]">
-      <TuningPanel />
+      {practice ? <TuningPanel /> : null}
       {levelQuery.isLoading ? (
         <p className="p-6 font-mono text-amber-100">Loading gym…</p>
       ) : levelQuery.isError || !level ? (
@@ -76,7 +79,7 @@ export function GameApp() {
           <GameCanvas level={level} input={input} />
         </div>
       )}
-      <DebugHud />
+      {practice ? <DebugHud /> : null}
       <ControlsHint />
       {spritesQuery.data ? (
         <span className="sr-only">

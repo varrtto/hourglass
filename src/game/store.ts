@@ -20,13 +20,25 @@ const emptyDebug: DebugSnapshot = {
   jumpPressed: false,
 };
 
+export type AppScreen = "menu" | "play" | "gym" | "scoreboard" | "exited";
+
+export type ScoreEntry = {
+  name: string;
+  timeMs: number;
+  deaths: number;
+  at: string;
+};
+
 type GameStore = {
+  screen: AppScreen;
   levelId: string;
   paused: boolean;
   muted: boolean;
   showDebug: boolean;
   kinematics: Kinematics;
   debug: DebugSnapshot;
+  scores: ScoreEntry[];
+  setScreen: (screen: AppScreen) => void;
   setPaused: (paused: boolean) => void;
   setMuted: (muted: boolean) => void;
   setShowDebug: (show: boolean) => void;
@@ -35,12 +47,19 @@ type GameStore = {
 };
 
 export const useGameStore = create<GameStore>((set) => ({
+  screen: "menu",
   levelId: "gym",
   paused: false,
   muted: true,
   showDebug: true,
   kinematics: { ...defaultKinematics },
   debug: emptyDebug,
+  scores: [],
+  setScreen: (screen) =>
+    set({
+      screen,
+      paused: screen !== "play" && screen !== "gym",
+    }),
   setPaused: (paused) => set({ paused }),
   setMuted: (muted) => set({ muted }),
   setShowDebug: (showDebug) => set({ showDebug }),
