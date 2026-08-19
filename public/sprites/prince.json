@@ -1,0 +1,19 @@
+{
+  "image": "/sprites/prince.png",
+  "frameWidth": 32,
+  "frameHeight": 48,
+  "tags": {
+    "idle": { "from": 0, "to": 0, "fps": 1 },
+    "turn": { "from": 1, "to": 3, "fps": 12 },
+    "run": { "from": 4, "to": 11, "fps": 12 },
+    "skid": { "from": 12, "to": 13, "fps": 10 },
+    "stand_jump": { "from": 14, "to": 18, "fps": 12 },
+    "run_jump": { "from": 19, "to": 24, "fps": 12 },
+    "fall": { "from": 25, "to": 26, "fps": 8 },
+    "land": { "from": 27, "to": 29, "fps": 12 },
+    "hang": { "from": 30, "to": 31, "fps": 6 },
+    "climb": { "from": 32, "to": 38, "fps": 12 },
+    "crouch": { "from": 39, "to": 40, "fps": 8 },
+    "dead": { "from": 41, "to": 43, "fps": 6 }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "music": [
+    { "id": "gym", "src": "/audio/music/gym.ogg", "loop": true }
+  ],
+  "sfx": [
+    { "id": "jump", "src": "/audio/sfx/jump.wav" },
+    { "id": "land", "src": "/audio/sfx/land.wav" },
+    { "id": "hang", "src": "/audio/sfx/hang.wav" },
+    { "id": "climb", "src": "/audio/sfx/climb.wav" }
+  ]
+}

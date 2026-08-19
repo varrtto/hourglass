@@ -1,0 +1,88 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import {
+  fetchAudioPlaylist,
+  fetchLevelMap,
+  fetchSpriteManifest,
+  queryKeys,
+} from "./queries";
+import { tiledToLevel } from "./world/loadLevel";
+import { InputController } from "./input";
+import { GameCanvas } from "./render/GameCanvas";
+import { ControlsHint, DebugHud } from "./render/DebugHud";
+import { TuningPanel } from "./render/TuningPanel";
+import { loadAudioBank, playMusic, setMuted, stopMusic } from "./audio/bus";
+import { useGameStore } from "./store";
+
+export function GameApp() {
+  const levelId = useGameStore((s) => s.levelId);
+  const muted = useGameStore((s) => s.muted);
+  const [input] = useState(() => new InputController());
+
+  const levelQuery = useQuery({
+    queryKey: queryKeys.level(levelId),
+    queryFn: () => fetchLevelMap(levelId),
+  });
+
+  const spritesQuery = useQuery({
+    queryKey: queryKeys.sprites("prince"),
+    queryFn: () => fetchSpriteManifest("prince"),
+  });
+
+  const audioQuery = useQuery({
+    queryKey: queryKeys.audio(),
+    queryFn: fetchAudioPlaylist,
+  });
+
+  useEffect(() => input.attach(window), [input]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "p") {
+        useGameStore.getState().setPaused(!useGameStore.getState().paused);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!audioQuery.data) return;
+    loadAudioBank(audioQuery.data);
+  }, [audioQuery.data]);
+
+  useEffect(() => {
+    setMuted(muted);
+    if (muted) stopMusic();
+    else playMusic("gym");
+  }, [muted]);
+
+  const level = useMemo(
+    () => (levelQuery.data ? tiledToLevel(levelId, levelQuery.data) : null),
+    [levelId, levelQuery.data],
+  );
+
+  return (
+    <div className="relative h-dvh w-full bg-[#0e0a08]">
+      <TuningPanel />
+      {levelQuery.isLoading ? (
+        <p className="p-6 font-mono text-amber-100">Loading gym…</p>
+      ) : levelQuery.isError || !level ? (
+        <p className="p-6 font-mono text-red-300">Failed to load level.</p>
+      ) : (
+        <div className="absolute inset-0">
+          <GameCanvas level={level} input={input} />
+        </div>
+      )}
+      <DebugHud />
+      <ControlsHint />
+      {spritesQuery.data ? (
+        <span className="sr-only">
+          Sprite sheet {spritesQuery.data.image} ready
+        </span>
+      ) : null}
+    </div>
+  );
+}

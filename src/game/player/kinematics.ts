@@ -1,0 +1,27 @@
+import type { Kinematics } from "../types";
+
+export const defaultKinematics: Kinematics = {
+  walkSpeed: 3.4,
+  runSpeed: 6.4,
+  crawlSpeed: 1.7,
+  turnTime: 0.16,
+  skidDecel: 28,
+  standJumpVel: 11.4,
+  standJumpHSpeed: 2.6,
+  runJumpVel: 10.4,
+  runJumpHSpeed: 6.2,
+  jumpGravity: -30,
+  fallGravity: -38,
+  maxFall: -18,
+  landTime: 0.1,
+  hurtLandTime: 0.55,
+  climbTime: 0.4,
+  hangReach: 0.3,
+  storyHeight: 3,
+  hurtStories: 2,
+  deathStories: 3,
+  grabCooldown: 0.2,
+  bodyWidth: 0.58,
+  standHeight: 1.82,
+  crouchHeight: 0.92,
+};
