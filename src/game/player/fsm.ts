@@ -142,6 +142,22 @@ function canStand(world: World, k: Kinematics): boolean {
 
 type LedgeGrab = { x: number; y: number; facing: 1 | -1 };
 
+/** Keep the AABB fully off the lip so drop-from-hang is not blocked by the floor tile. */
+const HANG_SKIN = 0.05;
+
+function hangPose(
+  edgeX: number,
+  top: number,
+  facing: 1 | -1,
+  bodyWidth: number,
+  height: number,
+): { x: number; y: number } {
+  return {
+    x: edgeX - facing * (bodyWidth * 0.5 + HANG_SKIN),
+    y: top - height * 0.92,
+  };
+}
+
 function findLedgeGrab(
   world: World,
   k: Kinematics,
@@ -163,7 +179,8 @@ function findLedgeGrab(
     const edgeX = facing > 0 ? tx : tx + 1;
     if (Math.abs(handY - top) > k.hangReach) continue;
     if (Math.abs(front - edgeX) > 0.55) continue;
-    return { x: edgeX - facing * 0.12, y: top - p.height * 0.92, facing };
+    const pose = hangPose(edgeX, top, facing, k.bodyWidth, p.height);
+    return { x: pose.x, y: pose.y, facing };
   }
   return null;
 }
@@ -300,10 +317,9 @@ function tryStartEdgeClimb(
     beginClimb(p, destX, destY);
     return true;
   }
-  const hangX = edge.edgeX - p.facing * 0.12;
-  const hangY = p.y - p.height * 0.92;
-  p.hang = { x: hangX, y: hangY };
-  beginClimb(p, hangX, hangY);
+  const pose = hangPose(edge.edgeX, p.y, p.facing, k.bodyWidth, p.height);
+  p.hang = { x: pose.x, y: pose.y };
+  beginClimb(p, pose.x, pose.y);
   return true;
 }
 
@@ -574,8 +590,11 @@ export function stepWorld(
         break;
       }
       if (input.jumpPressed || input.up) {
-        const destX = p.x + p.facing * 0.55;
         const destY = (p.hang?.y ?? p.y) + p.height * 0.92 + 0.02;
+        const edgeX = p.x + p.facing * (k.bodyWidth * 0.5 + HANG_SKIN);
+        const destX =
+          standOnStory(world, k, edgeX, destY, p.facing) ??
+          p.x + p.facing * (k.bodyWidth * 0.5 + 0.12);
         p.climbFrom = { x: p.x, y: p.y };
         p.climbTo = { x: destX, y: destY };
         setState(p, "climb");
