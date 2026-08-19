@@ -8,11 +8,13 @@ const ITEMS: { screen: AppScreen; label: string }[] = [
   { screen: "play", label: "Start new game" },
   { screen: "gym", label: "Practice Gym" },
   { screen: "scoreboard", label: "Scoreboard" },
+  { screen: "config", label: "Config" },
   { screen: "exited", label: "Exit" },
 ];
 
 export function MainMenu() {
   const setScreen = useGameStore((s) => s.setScreen);
+  const muted = useGameStore((s) => s.muted);
   const [selected, setSelected] = useState(0);
 
   const activate = useCallback(
@@ -87,7 +89,7 @@ export function MainMenu() {
         </nav>
 
         <p className="font-mono mt-16 text-[11px] tracking-wide text-amber-100/45">
-          Arrows / WASD select · Enter confirm
+          Arrows / WASD select · Enter confirm · M {muted ? "unmute" : "mute"}
         </p>
       </div>
     </MenuBackdrop>

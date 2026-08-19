@@ -5,7 +5,7 @@ export const defaultKinematics: Kinematics = {
   runSpeed: 6.4,
   crawlSpeed: 1.7,
   turnTime: 0.16,
-  skidDecel: 28,
+  skidDecel: 15,
   standJumpVel: 11.4,
   standJumpHSpeed: 2.6,
   runJumpVel: 10.4,

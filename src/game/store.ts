@@ -20,7 +20,7 @@ const emptyDebug: DebugSnapshot = {
   jumpPressed: false,
 };
 
-export type AppScreen = "menu" | "play" | "gym" | "scoreboard" | "exited";
+export type AppScreen = "menu" | "play" | "gym" | "scoreboard" | "config" | "exited";
 
 export type ScoreEntry = {
   name: string;
@@ -34,6 +34,7 @@ type GameStore = {
   levelId: string;
   paused: boolean;
   muted: boolean;
+  musicVolume: number;
   showDebug: boolean;
   kinematics: Kinematics;
   debug: DebugSnapshot;
@@ -41,6 +42,7 @@ type GameStore = {
   setScreen: (screen: AppScreen) => void;
   setPaused: (paused: boolean) => void;
   setMuted: (muted: boolean) => void;
+  setMusicVolume: (volume: number) => void;
   setShowDebug: (show: boolean) => void;
   setKinematics: (partial: Partial<Kinematics>) => void;
   setDebug: (debug: DebugSnapshot) => void;
@@ -51,6 +53,7 @@ export const useGameStore = create<GameStore>((set) => ({
   levelId: "gym",
   paused: false,
   muted: true,
+  musicVolume: 0.7,
   showDebug: true,
   kinematics: { ...defaultKinematics },
   debug: emptyDebug,
@@ -62,6 +65,8 @@ export const useGameStore = create<GameStore>((set) => ({
     }),
   setPaused: (paused) => set({ paused }),
   setMuted: (muted) => set({ muted }),
+  setMusicVolume: (volume) =>
+    set({ musicVolume: Math.min(1, Math.max(0, volume)) }),
   setShowDebug: (showDebug) => set({ showDebug }),
   setKinematics: (partial) =>
     set((s) => ({ kinematics: { ...s.kinematics, ...partial } })),

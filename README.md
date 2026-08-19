@@ -2,14 +2,14 @@
 
 Prince of Persia–style **kinematic** platformer gym. Movement is a state machine on a tile grid (run, jump, hang, climb, fall-by-stories), not a rigid-body physics engine.
 
-Stack: Next.js, TypeScript, Three.js (`@react-three/fiber` + drei), Zustand, TanStack Query, Howler, Leva, Tiled JSON.
+Stack: Next.js, TypeScript, Three.js (`@react-three/fiber` + drei), Zustand, TanStack Query, `react-midi-player`, Leva, Tiled JSON.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The app boots to the **main menu**. Unmute in the Leva panel (Practice Gym) once music files exist (browser autoplay is muted by default).
+Open [http://localhost:3000](http://localhost:3000). The app boots to the **main menu**. Click or press a key to start the menu music (browser autoplay is blocked until then). **M** toggles mute.
 
 ## Main menu
 
@@ -20,6 +20,7 @@ Full-screen pixel-art underworld (`public/art/menu-bg.png`) with four actions:
 | **Start new game** | Plays the gym as a run (no debug HUD, no Leva) |
 | **Practice Gym** | Current movement gym, including debug HUD and Leva tunables |
 | **Scoreboard** | Lists recorded runs (empty until a palace run is saved) |
+| **Config** | Mute and music volume |
 | **Exit** | Stills the hourglass; browsers usually block `window.close()` on a normal tab |
 
 Arrows / WASD select · Enter confirm. **Esc** from play, gym, or scoreboard returns to the menu.
@@ -39,7 +40,7 @@ Arrows / WASD select · Enter confirm. **Esc** from play, gym, or scoreboard ret
 | Reset | R / Enter | Start |
 | Pause | P | — |
 
-Walk vs run: without Shift you walk (short jump). Hold Shift to run and clear 3-tile gaps.
+Walk vs run: without Shift you walk (short jump). Hold Shift to run and clear 3-tile gaps. Reverse while running and you **skid** about a tile before turning; walking reverse is an in-place pivot. Hold **Down in the air** to tuck (crouch hitbox); land still holding Down to stay crouched.
 
 Fall rules (tunable in Leva, Practice Gym): **1 story** is safe, **2 stories** stun + lose HP, **3 stories** (or spikes) kill. Jump / R to respawn.
 
@@ -73,19 +74,20 @@ Drop a sprite sheet at `public/sprites/prince.png` and keep `public/sprites/prin
 
 The gym currently draws a placeholder box colored by FSM state. Wire the sheet in `src/game/render/PlayerView.tsx` / `LivePlayer` when the PNG lands (load with `NearestFilter` / `NearestMipmapNearestFilter`).
 
-## Music pipeline (8-bit)
+## Music pipeline
 
-Edit `public/audio/playlist.json`. Howler will no-op missing files.
+Edit `public/audio/playlist.json`. Menu `.mid` files play through `react-midi-player`. Other loops and SFX use the HTML `Audio` element. Missing files no-op.
 
 ```
-public/audio/music/gym.ogg     # looping gym theme
+public/audio/music/Moonspell - Vampiria.mid   # looping main-menu theme
+public/audio/music/gym.ogg                    # looping gym theme
 public/audio/sfx/jump.wav
 public/audio/sfx/land.wav
 public/audio/sfx/hang.wav
 public/audio/sfx/climb.wav
 ```
 
-Prefer `.ogg` for loops and short `.wav` for SFX. Toggle mute in Leva (Practice Gym); `src/game/audio/bus.ts` is the only Howler entry point.
+Click or press a key once to unlock audio (browser autoplay). **M** toggles mute. **Config** has a music volume slider.
 
 ## Levels (Tiled)
 
@@ -114,6 +116,7 @@ Keep `src/game/player/fsm.ts` as the source of truth; only replace meshes in `sr
 ## Code map
 
 - `src/game/GameShell.tsx` — screen router (menu / play / gym / scoreboard / exit)
+- `src/game/audio/` — `react-midi-player` menu theme, HTMLAudio gym loop / SFX
 - `src/game/menu/` — main menu, scoreboard, full-screen backdrop
 - `src/game/loop.ts` — 60 Hz fixed step
 - `src/game/input.ts` — keyboard + Gamepad API, edge-triggered jump

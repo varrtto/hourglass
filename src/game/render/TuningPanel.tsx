@@ -13,7 +13,7 @@ export function TuningPanel() {
 
   const values = useControls("Hourglass", {
     paused: false,
-    muted: true,
+    muted: useGameStore.getState().muted,
     showDebug: true,
   });
 
@@ -31,6 +31,12 @@ export function TuningPanel() {
       min: 2,
       max: 12,
       step: 0.1,
+    },
+    skidDecel: {
+      value: defaultKinematics.skidDecel,
+      min: 4,
+      max: 40,
+      step: 0.5,
     },
     hangReach: { value: defaultKinematics.hangReach, min: 0.1, max: 0.8, step: 0.02 },
     storyHeight: { value: defaultKinematics.storyHeight, min: 2, max: 5, step: 0.5 },

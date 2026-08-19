@@ -330,6 +330,16 @@ function startFall(p: Player) {
   setState(p, "fall");
 }
 
+function applyAirCrouch(
+  world: World,
+  k: Kinematics,
+  down: boolean,
+) {
+  const p = world.player;
+  if (down) p.height = k.crouchHeight;
+  else if (canStand(world, k)) p.height = k.standHeight;
+}
+
 function startJump(
   p: Player,
   k: Kinematics,
@@ -351,10 +361,12 @@ function startJump(
 }
 
 function land(
-  p: Player,
+  world: World,
   k: Kinematics,
+  tuck: boolean,
   carry: { dir: -1 | 0 | 1; run: boolean } | null = null,
 ) {
+  const p = world.player;
   const stories = Math.max(
     0,
     Math.round((p.fallOriginY - p.y) / k.storyHeight),
@@ -364,6 +376,7 @@ function land(
   if (stories >= k.deathStories) {
     p.hp = 0;
     p.vx = 0;
+    p.height = k.standHeight;
     setState(p, "dead");
     return;
   }
@@ -371,12 +384,21 @@ function land(
     p.hp = Math.max(0, p.hp - 1);
     p.vx = 0;
     if (p.hp <= 0) {
+      p.height = k.standHeight;
       setState(p, "dead");
       return;
     }
     setState(p, "land");
     return;
   }
+  if (tuck || !canStand(world, k)) {
+    p.height = k.crouchHeight;
+    p.vx = 0;
+    p.storiesFallen = 0;
+    setState(p, "crouch");
+    return;
+  }
+  p.height = k.standHeight;
   const keepRun =
     p.state === "runJump" &&
     carry?.run === true &&
@@ -425,12 +447,13 @@ export function stepWorld(
       if (input.jumpPressed && (input.up || input.down)) {
         if (tryStartEdgeClimb(world, k, input.up ? 1 : -1)) break;
       }
-      if (input.down) {
-        setState(p, "crouch");
-        break;
-      }
       if (input.jumpPressed) {
         startJump(p, k, false, dir === 0 ? 0 : dir);
+        if (input.down) p.height = k.crouchHeight;
+        break;
+      }
+      if (input.down) {
+        setState(p, "crouch");
         break;
       }
       if (dir !== 0 && dir !== p.facing) {
@@ -458,23 +481,33 @@ export function stepWorld(
         startFall(p);
         break;
       }
+      if (input.jumpPressed && input.up) {
+        if (tryStartEdgeClimb(world, k, 1)) break;
+      }
+      if (input.jumpPressed && input.down) {
+        if (tryStartEdgeClimb(world, k, -1)) break;
+      }
+      if (input.jumpPressed) {
+        startJump(p, k, input.run || Math.abs(p.vx) > k.walkSpeed + 0.4, dir);
+        if (input.down) p.height = k.crouchHeight;
+        break;
+      }
       if (input.down) {
         setState(p, "crouch");
         break;
       }
-      if (input.jumpPressed && input.up) {
-        if (tryStartEdgeClimb(world, k, 1)) break;
-      }
-      if (input.jumpPressed) {
-        startJump(p, k, input.run || Math.abs(p.vx) > k.walkSpeed + 0.4, dir);
-        break;
-      }
       if (dir === 0) {
-        setState(p, "skid");
+        if (Math.abs(p.vx) > 0.4) setState(p, "skid");
+        else {
+          p.vx = 0;
+          setState(p, "idle");
+        }
         break;
       }
       if (dir !== p.facing) {
-        setState(p, "skid");
+        // Run reverse: keep sliding the old way, then flip. Walk reverse: pivot in place.
+        if (Math.abs(p.vx) > k.walkSpeed + 0.2) setState(p, "skid");
+        else setState(p, "turn");
         break;
       }
       const speed = input.run ? k.runSpeed : k.walkSpeed;
@@ -484,9 +517,23 @@ export function stepWorld(
       break;
     }
     case "skid": {
-      const sign = Math.sign(p.vx);
+      p.height = k.standHeight;
+      if (!onGround) {
+        startFall(p);
+        break;
+      }
+      if (input.jumpPressed) {
+        startJump(
+          p,
+          k,
+          Math.abs(p.vx) > k.walkSpeed + 0.4,
+          p.facing,
+        );
+        break;
+      }
+      const sign = Math.sign(p.vx) || p.facing;
       p.vx -= sign * k.skidDecel * dt;
-      if (sign !== 0 && Math.sign(p.vx) !== sign) p.vx = 0;
+      if (Math.sign(p.vx) !== sign) p.vx = 0;
       moveAxis(world, k, p.vx * dt, 0);
       if (!grounded(world, k)) {
         startFall(p);
@@ -494,14 +541,20 @@ export function stepWorld(
       }
       if (Math.abs(p.vx) < 0.2) {
         p.vx = 0;
-        if (dir !== 0 && dir !== p.facing) setState(p, "turn");
-        else if (dir === p.facing) setState(p, "run");
-        else setState(p, "idle");
+        if (dir !== 0 && dir !== p.facing) {
+          p.facing = dir;
+          setState(p, "run");
+        } else if (dir === p.facing) {
+          setState(p, "run");
+        } else {
+          setState(p, "idle");
+        }
       }
       break;
     }
     case "standJump":
     case "runJump": {
+      applyAirCrouch(world, k, input.down);
       p.vy += k.jumpGravity * dt;
       if (p.state === "runJump") {
         if (dir === p.facing) {
@@ -511,8 +564,9 @@ export function stepWorld(
       }
       const { hitY } = moveAxis(world, k, p.vx * dt, p.vy * dt);
       if (p.vy > 0 && hitY) p.vy = 0;
-      const grab = findLedgeGrab(world, k);
+      const grab = !input.down ? findLedgeGrab(world, k) : null;
       if (grab && p.vy <= 2) {
+        p.height = k.standHeight;
         p.facing = grab.facing;
         p.hang = { x: grab.x, y: grab.y };
         p.x = grab.x;
@@ -525,7 +579,7 @@ export function stepWorld(
       // <= 0 so a ceiling bonk (vy clamped to 0) still lands instead of
       // staying in jump forever while grounded.
       if (p.vy <= 0 && grounded(world, k)) {
-        land(p, k, { dir, run: input.run });
+        land(world, k, input.down, { dir, run: input.run });
         break;
       }
       // Walk hops convert to fall (slow air control). Run jumps stay in
@@ -537,6 +591,7 @@ export function stepWorld(
       break;
     }
     case "fall": {
+      applyAirCrouch(world, k, input.down);
       p.vy += k.fallGravity * dt;
       if (p.vy < k.maxFall) p.vy = k.maxFall;
       if (dir !== 0) {
@@ -547,8 +602,9 @@ export function stepWorld(
         p.vx *= 0.96;
       }
       moveAxis(world, k, p.vx * dt, p.vy * dt);
-      const grab = findLedgeGrab(world, k);
+      const grab = !input.down ? findLedgeGrab(world, k) : null;
       if (grab) {
+        p.height = k.standHeight;
         p.facing = grab.facing;
         p.hang = { x: grab.x, y: grab.y };
         p.x = grab.x;
@@ -558,7 +614,7 @@ export function stepWorld(
         setState(p, "hang");
         break;
       }
-      if (grounded(world, k) && p.vy <= 0) land(p, k);
+      if (grounded(world, k) && p.vy <= 0) land(world, k, input.down);
       p.storiesFallen = Math.max(
         0,
         (p.fallOriginY - p.y) / k.storyHeight,
@@ -630,8 +686,8 @@ export function stepWorld(
     case "crouch": {
       p.height = k.crouchHeight;
       if (!onGround) {
-        p.height = k.standHeight;
         startFall(p);
+        p.height = k.crouchHeight;
         break;
       }
       if (input.jumpPressed && (input.up || input.down)) {
@@ -639,6 +695,11 @@ export function stepWorld(
           p.height = k.standHeight;
           break;
         }
+      }
+      if (input.jumpPressed) {
+        startJump(p, k, false, dir === 0 ? 0 : dir);
+        p.height = k.crouchHeight;
+        break;
       }
       if (dir !== 0) {
         p.facing = dir;

@@ -2,23 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import {
-  fetchAudioPlaylist,
-  fetchLevelMap,
-  fetchSpriteManifest,
-  queryKeys,
-} from "./queries";
+import { fetchLevelMap, fetchSpriteManifest, queryKeys } from "./queries";
 import { tiledToLevel } from "./world/loadLevel";
 import { InputController } from "./input";
 import { GameCanvas } from "./render/GameCanvas";
 import { ControlsHint, DebugHud } from "./render/DebugHud";
 import { TuningPanel } from "./render/TuningPanel";
-import { loadAudioBank, playMusic, setMuted, stopMusic } from "./audio/bus";
 import { useGameStore } from "./store";
 
 export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
   const levelId = useGameStore((s) => s.levelId);
-  const muted = useGameStore((s) => s.muted);
   const [input] = useState(() => new InputController());
   const practice = mode === "practice";
 
@@ -32,11 +25,6 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
     queryFn: () => fetchSpriteManifest("prince"),
   });
 
-  const audioQuery = useQuery({
-    queryKey: queryKeys.audio(),
-    queryFn: fetchAudioPlaylist,
-  });
-
   useEffect(() => input.attach(window), [input]);
 
   useEffect(() => {
@@ -48,19 +36,6 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
-
-  useEffect(() => {
-    if (!audioQuery.data) return;
-    loadAudioBank(audioQuery.data);
-  }, [audioQuery.data]);
-
-  useEffect(() => {
-    setMuted(muted);
-    if (muted) stopMusic();
-    else playMusic("gym");
-  }, [muted]);
-
-  useEffect(() => () => stopMusic(), []);
 
   const level = useMemo(
     () => (levelQuery.data ? tiledToLevel(levelId, levelQuery.data) : null),
