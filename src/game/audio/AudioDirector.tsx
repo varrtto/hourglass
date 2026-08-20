@@ -20,7 +20,7 @@ function isMidiSrc(src: string) {
 
 function trackForScreen(screen: AppScreen): string | null {
   if (screen === "play" || screen === "gym") return "gym";
-  if (screen === "exited") return null;
+  if (screen === "exited" || screen === "builder") return null;
   return "menu";
 }
 
