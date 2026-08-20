@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DebugSnapshot, Kinematics } from "./types";
+import type { DebugSnapshot, Kinematics, Level } from "./types";
 import { defaultKinematics } from "./player/kinematics";
 
 const emptyDebug: DebugSnapshot = {
@@ -20,7 +20,14 @@ const emptyDebug: DebugSnapshot = {
   jumpPressed: false,
 };
 
-export type AppScreen = "menu" | "play" | "gym" | "scoreboard" | "config" | "exited";
+export type AppScreen =
+  | "menu"
+  | "play"
+  | "gym"
+  | "builder"
+  | "scoreboard"
+  | "config"
+  | "exited";
 
 export type ScoreEntry = {
   name: string;
@@ -39,6 +46,9 @@ type GameStore = {
   kinematics: Kinematics;
   debug: DebugSnapshot;
   scores: ScoreEntry[];
+  draftLevel: Level | null;
+  playtestFromBuilder: boolean;
+  playtestRevision: number;
   setScreen: (screen: AppScreen) => void;
   setPaused: (paused: boolean) => void;
   setMuted: (muted: boolean) => void;
@@ -46,6 +56,9 @@ type GameStore = {
   setShowDebug: (show: boolean) => void;
   setKinematics: (partial: Partial<Kinematics>) => void;
   setDebug: (debug: DebugSnapshot) => void;
+  setDraftLevel: (level: Level | null) => void;
+  setPlaytestFromBuilder: (value: boolean) => void;
+  startPlaytest: (level: Level) => void;
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -58,6 +71,9 @@ export const useGameStore = create<GameStore>((set) => ({
   kinematics: { ...defaultKinematics },
   debug: emptyDebug,
   scores: [],
+  draftLevel: null,
+  playtestFromBuilder: false,
+  playtestRevision: 0,
   setScreen: (screen) =>
     set({
       screen,
@@ -71,4 +87,18 @@ export const useGameStore = create<GameStore>((set) => ({
   setKinematics: (partial) =>
     set((s) => ({ kinematics: { ...s.kinematics, ...partial } })),
   setDebug: (debug) => set({ debug }),
+  setDraftLevel: (draftLevel) => set({ draftLevel }),
+  setPlaytestFromBuilder: (playtestFromBuilder) => set({ playtestFromBuilder }),
+  startPlaytest: (level) =>
+    set((s) => ({
+      draftLevel: {
+        ...level,
+        tiles: [...level.tiles],
+        spawn: { ...level.spawn },
+      },
+      playtestFromBuilder: true,
+      playtestRevision: s.playtestRevision + 1,
+      screen: "gym",
+      paused: false,
+    })),
 }));

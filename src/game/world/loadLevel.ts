@@ -7,13 +7,21 @@ import {
   type TileId,
 } from "../types";
 
+export const TILED_TILE_SIZE = 16;
+
 type TiledLayer = {
+  id?: number;
   name: string;
   type: string;
   width?: number;
   height?: number;
+  x?: number;
+  y?: number;
+  opacity?: number;
+  visible?: boolean;
   data?: number[];
   objects?: Array<{
+    id?: number;
     name?: string;
     type?: string;
     x: number;
@@ -23,12 +31,32 @@ type TiledLayer = {
   }>;
 };
 
+export type TiledTileset = {
+  firstgid: number;
+  name: string;
+  tilewidth: number;
+  tileheight: number;
+  tilecount: number;
+  columns: number;
+  tiles: Array<{ id: number; type: string }>;
+};
+
 export type TiledMap = {
   width: number;
   height: number;
   tilewidth: number;
   tileheight: number;
   layers: TiledLayer[];
+  type?: string;
+  orientation?: string;
+  renderorder?: string;
+  infinite?: boolean;
+  compressionlevel?: number;
+  version?: string;
+  tiledversion?: string;
+  nextlayerid?: number;
+  nextobjectid?: number;
+  tilesets?: TiledTileset[];
 };
 
 function gidToTile(gid: number): TileId {
@@ -36,6 +64,13 @@ function gidToTile(gid: number): TileId {
   if (gid === 2) return TILE_LEDGE;
   if (gid === 3) return TILE_SPIKE;
   return TILE_EMPTY;
+}
+
+function tileToGid(id: TileId): number {
+  if (id === TILE_SOLID) return 1;
+  if (id === TILE_LEDGE) return 2;
+  if (id === TILE_SPIKE) return 3;
+  return 0;
 }
 
 export function tiledToLevel(id: string, map: TiledMap): Level {
@@ -74,4 +109,84 @@ export function tiledToLevel(id: string, map: TiledMap): Level {
   }
 
   return { id, width, height, tiles, spawn };
+}
+
+/** Inverse of `tiledToLevel`: runtime y-up tiles → Tiled y-down JSON. */
+export function levelToTiled(level: Level): TiledMap {
+  const tw = TILED_TILE_SIZE;
+  const th = TILED_TILE_SIZE;
+  const { width, height } = level;
+  const data: number[] = new Array(width * height);
+
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const worldTy = height - 1 - row;
+      data[row * width + col] = tileToGid(level.tiles[worldTy * width + col] as TileId);
+    }
+  }
+
+  return {
+    compressionlevel: -1,
+    width,
+    height,
+    tilewidth: tw,
+    tileheight: th,
+    infinite: false,
+    orientation: "orthogonal",
+    renderorder: "right-down",
+    tiledversion: "1.10.2",
+    type: "map",
+    version: "1.10",
+    nextlayerid: 3,
+    nextobjectid: 2,
+    tilesets: [
+      {
+        firstgid: 1,
+        name: "collision",
+        tilewidth: tw,
+        tileheight: th,
+        tilecount: 3,
+        columns: 3,
+        tiles: [
+          { id: 0, type: "solid" },
+          { id: 1, type: "ledge" },
+          { id: 2, type: "spike" },
+        ],
+      },
+    ],
+    layers: [
+      {
+        id: 1,
+        name: "collision",
+        type: "tilelayer",
+        width,
+        height,
+        x: 0,
+        y: 0,
+        opacity: 1,
+        visible: true,
+        data,
+      },
+      {
+        id: 2,
+        name: "entities",
+        type: "objectgroup",
+        x: 0,
+        y: 0,
+        opacity: 1,
+        visible: true,
+        objects: [
+          {
+            id: 1,
+            name: "spawn",
+            type: "spawn",
+            x: (level.spawn.x - 0.5) * tw,
+            y: (height - level.spawn.y) * th,
+            width: tw,
+            height: th,
+          },
+        ],
+      },
+    ],
+  };
 }

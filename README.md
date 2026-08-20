@@ -13,17 +13,18 @@ Open [http://localhost:3000](http://localhost:3000). The app boots to the **main
 
 ## Main menu
 
-Full-screen pixel-art underworld (`public/art/menu-bg.png`) with four actions:
+Full-screen pixel-art underworld (`public/art/menu-bg.png`) with these actions:
 
 | Action | What it does |
 |---|---|
 | **Start new game** | Plays the gym as a run (no debug HUD, no Leva) |
 | **Practice Gym** | Current movement gym, including debug HUD and Leva tunables |
+| **Map Builder** | Paint collision tiles and spawn, playtest in the gym, download Tiled JSON |
 | **Scoreboard** | Lists recorded runs (empty until a palace run is saved) |
 | **Config** | Mute and music volume |
 | **Exit** | Stills the hourglass; browsers usually block `window.close()` on a normal tab |
 
-Arrows / WASD select · Enter confirm. **Esc** from play, gym, or scoreboard returns to the menu.
+Arrows / WASD select · Enter confirm. **Esc** from play, gym, builder, or scoreboard returns to the menu. **Esc** during a builder playtest returns to the editor.
 
 ## Controls
 
@@ -97,11 +98,29 @@ Click or press a key once to unlock audio (browser autoplay). **M** toggles mute
 4. Export as JSON to `public/levels/<id>.json`.
 5. Tiled is **y-down**; the loader flips to **y-up** world space.
 
+Or skip Tiled and use the in-game **Map Builder** (below).
+
 Regenerate the built-in gym:
 
 ```bash
 node scripts/generate-gym.cjs
 ```
+
+## Map Builder
+
+Main menu → **Map Builder**. The grid is runtime space (y-up, 1 tile = 1 unit) so it matches Practice Gym.
+
+| Tool | Key |
+|---|---|
+| Empty / solid / ledge / spike / spawn | 1–5 |
+| Paint | Click-drag |
+| Pan | Space-drag or middle-drag |
+| Zoom | Mouse wheel |
+| Undo / redo | ⌘Z / Shift+⌘Z |
+
+**Playtest** drops the draft into Practice Gym immediately (Esc returns to the editor). **Download** writes Tiled JSON you can drop into `public/levels/<id>.json`. **Load gym** / **Import** round-trip the same format. New maps are 64×24 with edge walls.
+
+The session stays in memory if you leave for the menu and come back. Practice Gym from the main menu still loads `gym.json`, not the draft.
 
 ## Hybrid 3D later
 
@@ -115,7 +134,8 @@ Keep `src/game/player/fsm.ts` as the source of truth; only replace meshes in `sr
 
 ## Code map
 
-- `src/game/GameShell.tsx` — screen router (menu / play / gym / scoreboard / exit)
+- `src/game/GameShell.tsx` — screen router (menu / play / gym / builder / scoreboard / exit)
+- `src/game/builder/` — in-game map editor (paint, spawn, Tiled import/export)
 - `src/game/audio/` — `react-midi-player` menu theme, HTMLAudio gym loop / SFX
 - `src/game/menu/` — main menu, scoreboard, full-screen backdrop
 - `src/game/loop.ts` — 60 Hz fixed step
