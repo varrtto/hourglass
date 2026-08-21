@@ -10,6 +10,7 @@ const ITEMS: { screen: AppScreen; label: string }[] = [
   { screen: "builder", label: "Map Builder" },
   { screen: "scoreboard", label: "Scoreboard" },
   { screen: "config", label: "Config" },
+  { screen: "credits", label: "Credits" },
   { screen: "exited", label: "Exit" },
 ];
 

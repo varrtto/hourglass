@@ -18,6 +18,28 @@ let gain: GainNode | null = null;
 let player: MidiFilePlayer | null = null;
 let playingSrc: string | null = null;
 let targetGain = 0.7;
+let disconnectPatched = false;
+
+/** jzz-synth-tiny disconnects chmod from oscillator.detune in onended; a second
+ *  stop() (React Strict Mode, screen change) throws InvalidAccessError. */
+function patchTinyDisconnect() {
+  if (disconnectPatched || typeof AudioNode === "undefined") return;
+  disconnectPatched = true;
+  const orig = AudioNode.prototype.disconnect;
+  AudioNode.prototype.disconnect = function (
+    this: AudioNode,
+    ...args: unknown[]
+  ) {
+    try {
+      return orig.apply(this, args as []);
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "InvalidAccessError") {
+        return;
+      }
+      throw err;
+    }
+  };
+}
 
 function plugin(
   mod: { default?: (api: unknown) => void } | ((api: unknown) => void),
@@ -42,6 +64,7 @@ export function setMidiGain(value: number) {
 
 export function bootMidi(): Promise<void> {
   if (typeof window === "undefined") return Promise.resolve();
+  patchTinyDisconnect();
   if (!boot) {
     boot = (async () => {
       const JzzMod = await import("jzz");
@@ -90,7 +113,12 @@ export async function playMidiUrl(src: string, loop: boolean) {
 }
 
 export function stopMidi() {
-  player?.stop();
+  patchTinyDisconnect();
+  try {
+    player?.stop();
+  } catch {
+    /* Tiny may throw if voices already ended */
+  }
   player = null;
   playingSrc = null;
 }

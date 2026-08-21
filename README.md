@@ -22,9 +22,10 @@ Full-screen pixel-art underworld (`public/art/menu-bg.png`) with these actions:
 | **Map Builder** | Paint collision tiles and spawn, playtest in the gym, download Tiled JSON |
 | **Scoreboard** | Lists recorded runs (empty until a palace run is saved) |
 | **Config** | Mute and music volume |
+| **Credits** | Vertically scrolling text template (plot / credits crawl) |
 | **Exit** | Stills the hourglass; browsers usually block `window.close()` on a normal tab |
 
-Arrows / WASD select · Enter confirm. **Esc** from play, gym, builder, or scoreboard returns to the menu. **Esc** during a builder playtest returns to the editor.
+Arrows / WASD select · Enter confirm. **Esc** from play, gym, builder, scoreboard, or credits returns to the menu. **Esc** during a builder playtest returns to the editor.
 
 ## Controls
 
@@ -135,10 +136,10 @@ Keep `src/game/player/fsm.ts` as the source of truth; only replace meshes in `sr
 
 ## Code map
 
-- `src/game/GameShell.tsx` — screen router (menu / play / gym / builder / scoreboard / exit)
+- `src/game/GameShell.tsx` — screen router (menu / play / gym / builder / scoreboard / credits / exit)
 - `src/game/builder/` — in-game map editor (paint, spawn, Tiled import/export)
 - `src/game/audio/` — `react-midi-player` menu theme, HTMLAudio gym loop / SFX
-- `src/game/menu/` — main menu, scoreboard, full-screen backdrop
+- `src/game/menu/` — main menu, scoreboard, credits crawl, full-screen backdrop
 - `src/game/loop.ts` — 60 Hz fixed step
 - `src/game/input.ts` — keyboard + Gamepad API, edge-triggered jump
 - `src/game/player/fsm.ts` — PoP kinematic controller

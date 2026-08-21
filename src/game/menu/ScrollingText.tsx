@@ -1,0 +1,61 @@
+"use client";
+
+import { useEffect, useSyncExternalStore } from "react";
+
+function subscribeMotion(onStoreChange: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", onStoreChange);
+  return () => mq.removeEventListener("change", onStoreChange);
+}
+
+function getReduceMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+export function ScrollingText({
+  children,
+  durationSec = 48,
+  onSkip,
+}: {
+  children: React.ReactNode;
+  durationSec?: number;
+  onSkip?: () => void;
+}) {
+  const reduceMotion = useSyncExternalStore(
+    subscribeMotion,
+    getReduceMotion,
+    () => false,
+  );
+
+  useEffect(() => {
+    if (!onSkip) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" || e.key === "Enter" || e.key === "Backspace") {
+        e.preventDefault();
+        onSkip();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onSkip]);
+
+  return (
+    <div className="hourglass-crawl-mask relative h-full w-full overflow-hidden">
+      {reduceMotion ? (
+        <div className="h-full overflow-y-auto px-8 py-16 sm:px-16">
+          <div className="mx-auto max-w-xl pb-16">{children}</div>
+        </div>
+      ) : (
+        <div
+          className="absolute right-0 left-0 px-8 sm:px-16"
+          style={{
+            top: "100%",
+            animation: `hourglass-crawl ${durationSec}s linear forwards`,
+          }}
+        >
+          <div className="mx-auto max-w-xl">{children}</div>
+        </div>
+      )}
+    </div>
+  );
+}

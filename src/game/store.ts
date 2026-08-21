@@ -27,6 +27,7 @@ export type AppScreen =
   | "builder"
   | "scoreboard"
   | "config"
+  | "credits"
   | "exited";
 
 export type ScoreEntry = {

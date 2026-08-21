@@ -5,6 +5,7 @@ import { AudioDirector } from "./audio/AudioDirector";
 import { MapBuilder } from "./builder/MapBuilder";
 import { GameApp } from "./GameApp";
 import { Config } from "./menu/Config";
+import { Credits } from "./menu/Credits";
 import { ExitScreen, MainMenu } from "./menu/MainMenu";
 import { Scoreboard } from "./menu/Scoreboard";
 import { useGameStore } from "./store";
@@ -35,7 +36,8 @@ export function GameShell() {
         current === "play" ||
         current === "gym" ||
         current === "scoreboard" ||
-        current === "config"
+        current === "config" ||
+        current === "credits"
       ) {
         e.preventDefault();
         state.setScreen("menu");
@@ -54,6 +56,8 @@ export function GameShell() {
         <Scoreboard />
       ) : screen === "config" ? (
         <Config />
+      ) : screen === "credits" ? (
+        <Credits />
       ) : screen === "exited" ? (
         <ExitScreen />
       ) : screen === "builder" ? (
