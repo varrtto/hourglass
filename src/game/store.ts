@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { DebugSnapshot, Kinematics, Level } from "./types";
+import { INVENTORY_SIZE, type DebugSnapshot, type InventorySlot, type Kinematics, type Level } from "./types";
 import { defaultKinematics } from "./player/kinematics";
 
 const emptyDebug: DebugSnapshot = {
@@ -46,6 +46,8 @@ type GameStore = {
   kinematics: Kinematics;
   debug: DebugSnapshot;
   scores: ScoreEntry[];
+  inventory: InventorySlot[];
+  selectedSlot: number;
   draftLevel: Level | null;
   playtestFromBuilder: boolean;
   playtestRevision: number;
@@ -59,6 +61,8 @@ type GameStore = {
   setDraftLevel: (level: Level | null) => void;
   setPlaytestFromBuilder: (value: boolean) => void;
   startPlaytest: (level: Level) => void;
+  setSelectedSlot: (index: number) => void;
+  moveSelectedSlot: (delta: number) => void;
 };
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -71,6 +75,8 @@ export const useGameStore = create<GameStore>((set) => ({
   kinematics: { ...defaultKinematics },
   debug: emptyDebug,
   scores: [],
+  inventory: Array.from({ length: INVENTORY_SIZE }, () => null),
+  selectedSlot: 0,
   draftLevel: null,
   playtestFromBuilder: false,
   playtestRevision: 0,
@@ -100,5 +106,14 @@ export const useGameStore = create<GameStore>((set) => ({
       playtestRevision: s.playtestRevision + 1,
       screen: "gym",
       paused: false,
+    })),
+  setSelectedSlot: (index) =>
+    set({
+      selectedSlot: Math.min(INVENTORY_SIZE - 1, Math.max(0, Math.floor(index))),
+    }),
+  moveSelectedSlot: (delta) =>
+    set((s) => ({
+      selectedSlot:
+        (s.selectedSlot + delta + INVENTORY_SIZE) % INVENTORY_SIZE,
     })),
 }));

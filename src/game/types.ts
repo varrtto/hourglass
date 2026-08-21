@@ -76,6 +76,15 @@ export type World = {
   player: Player;
 };
 
+export const INVENTORY_SIZE = 5;
+
+export type InventoryItem = {
+  id: string;
+  name: string;
+};
+
+export type InventorySlot = InventoryItem | null;
+
 export type InputFrame = {
   left: boolean;
   right: boolean;

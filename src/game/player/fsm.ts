@@ -236,6 +236,88 @@ function standOnStory(
   return null;
 }
 
+const SHORT_STEP = 1.05;
+
+/** Nearest standable floor below an edge, within one story. Prefers the drop side. */
+function findClimbDownStand(
+  world: World,
+  k: Kinematics,
+  edgeX: number,
+  facing: 1 | -1,
+): { x: number; y: number } | null {
+  const p = world.player;
+  const floorTop = Math.floor(p.y - 0.08) + 1;
+  const dropDir = -facing as 1 | -1;
+  const maxTiles = Math.max(1, Math.round(k.storyHeight));
+  for (let tiles = 1; tiles <= maxTiles; tiles++) {
+    const destY = floorTop - tiles;
+    const dropX = standOnStory(world, k, edgeX, destY, dropDir);
+    if (dropX !== null) return { x: dropX, y: destY };
+    const inX = standOnStory(world, k, edgeX, destY, facing);
+    if (inX !== null) return { x: inX, y: destY };
+  }
+  return null;
+}
+
+/** Walk off a 1-tile step onto the floor below instead of falling into the wall. */
+function tryStepDown(world: World, k: Kinematics): boolean {
+  const p = world.player;
+  const destY = Math.floor(p.y - 0.08);
+  if (destY < 0 || p.y - destY > SHORT_STEP) return false;
+  if (!canStandAt(world, p.x, destY, k)) return false;
+  p.y = destY;
+  p.vy = 0;
+  return true;
+}
+
+function leftGround(world: World, k: Kinematics) {
+  if (!tryStepDown(world, k)) startFall(world.player);
+}
+
+function resolvePenetration(world: World, k: Kinematics) {
+  const p = world.player;
+  const w = k.bodyWidth;
+  const h = p.height;
+  if (!collides(world, p.x, p.y, w, h, false)) return;
+
+  let bestX = p.x;
+  let bestY = p.y;
+  let bestDist = Infinity;
+
+  for (const dir of [-1, 1] as const) {
+    for (let i = 1; i <= 80; i++) {
+      const x = p.x + dir * 0.02 * i;
+      if (!collides(world, x, p.y, w, h, false)) {
+        const d = Math.abs(x - p.x);
+        if (d < bestDist) {
+          bestDist = d;
+          bestX = x;
+          bestY = p.y;
+        }
+        break;
+      }
+    }
+  }
+
+  for (let i = 1; i <= 120; i++) {
+    const y = p.y + 0.02 * i;
+    if (!collides(world, p.x, y, w, h, false)) {
+      const d = y - p.y;
+      if (d < bestDist) {
+        bestDist = d;
+        bestX = p.x;
+        bestY = y;
+      }
+      break;
+    }
+  }
+
+  if (bestDist < Infinity) {
+    p.x = bestX;
+    p.y = bestY;
+  }
+}
+
 const STORY_GRAB = 1.25;
 
 function isFloorCell(level: World["level"], tx: number, ty: number): boolean {
@@ -310,11 +392,18 @@ function tryStartEdgeClimb(
   const edge = inwardEdge(world, k);
   if (!edge) return false;
   p.height = k.standHeight;
-  const destY = p.y - k.storyHeight;
-  const destX = standOnStory(world, k, edge.edgeX, destY, p.facing);
-  if (destX !== null) {
+  const dest = findClimbDownStand(world, k, edge.edgeX, p.facing);
+  if (dest) {
     p.hang = null;
-    beginClimb(p, destX, destY);
+    if (p.y - dest.y <= SHORT_STEP) {
+      p.x = dest.x;
+      p.y = dest.y;
+      p.vx = 0;
+      p.vy = 0;
+      setState(p, "idle");
+      return true;
+    }
+    beginClimb(p, dest.x, dest.y);
     return true;
   }
   const pose = hangPose(edge.edgeX, p.y, p.facing, k.bodyWidth, p.height);
@@ -441,7 +530,7 @@ export function stepWorld(
       p.vx = 0;
       p.vy = 0;
       if (!onGround) {
-        startFall(p);
+        leftGround(world, k);
         break;
       }
       if (input.jumpPressed && (input.up || input.down)) {
@@ -478,7 +567,7 @@ export function stepWorld(
     case "run": {
       p.height = k.standHeight;
       if (!onGround) {
-        startFall(p);
+        leftGround(world, k);
         break;
       }
       if (input.jumpPressed && input.up) {
@@ -513,13 +602,13 @@ export function stepWorld(
       const speed = input.run ? k.runSpeed : k.walkSpeed;
       p.vx = p.facing * speed;
       moveAxis(world, k, p.vx * dt, 0);
-      if (!grounded(world, k)) startFall(p);
+      if (!grounded(world, k)) leftGround(world, k);
       break;
     }
     case "skid": {
       p.height = k.standHeight;
       if (!onGround) {
-        startFall(p);
+        leftGround(world, k);
         break;
       }
       if (input.jumpPressed) {
@@ -536,7 +625,7 @@ export function stepWorld(
       if (Math.sign(p.vx) !== sign) p.vx = 0;
       moveAxis(world, k, p.vx * dt, 0);
       if (!grounded(world, k)) {
-        startFall(p);
+        leftGround(world, k);
         break;
       }
       if (Math.abs(p.vx) < 0.2) {
@@ -686,8 +775,10 @@ export function stepWorld(
     case "crouch": {
       p.height = k.crouchHeight;
       if (!onGround) {
-        startFall(p);
-        p.height = k.crouchHeight;
+        if (!tryStepDown(world, k)) {
+          startFall(p);
+          p.height = k.crouchHeight;
+        }
         break;
       }
       if (input.jumpPressed && (input.up || input.down)) {
@@ -708,6 +799,10 @@ export function stepWorld(
         p.vx = 0;
       }
       moveAxis(world, k, p.vx * dt, 0);
+      if (!grounded(world, k) && !tryStepDown(world, k)) {
+        startFall(p);
+        p.height = k.crouchHeight;
+      }
       if (!input.down && canStand(world, k)) {
         p.height = k.standHeight;
         setState(p, dir !== 0 ? "run" : "idle");
@@ -720,6 +815,10 @@ export function stepWorld(
       if (input.jumpPressed) respawn(world, k);
       break;
     }
+  }
+
+  if (p.state !== "climb" && p.state !== "dead") {
+    resolvePenetration(world, k);
   }
 
   if (aabbHitsSpikes(world.level, p.x, p.y, k.bodyWidth, p.height)) {

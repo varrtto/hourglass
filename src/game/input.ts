@@ -17,7 +17,7 @@ const KEY_LEFT = new Set(["arrowleft", "a"]);
 const KEY_RIGHT = new Set(["arrowright", "d"]);
 const KEY_UP = new Set(["arrowup", "w"]);
 const KEY_DOWN = new Set(["arrowdown", "s"]);
-const KEY_JUMP = new Set([" ", "space", "spacebar", "j", "z"]);
+const KEY_JUMP = new Set([" ", "space", "spacebar", "z"]);
 const KEY_RUN = new Set(["shift"]);
 
 export class InputController {

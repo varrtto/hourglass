@@ -7,6 +7,7 @@ import { tiledToLevel } from "./world/loadLevel";
 import { InputController } from "./input";
 import { GameCanvas } from "./render/GameCanvas";
 import { ControlsHint, DebugHud } from "./render/DebugHud";
+import { InventoryHud } from "./render/InventoryHud";
 import { TuningPanel } from "./render/TuningPanel";
 import { useGameStore } from "./store";
 
@@ -65,8 +66,9 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
         </div>
       )}
       {practice ? <DebugHud /> : null}
+      <InventoryHud />
       {useDraft ? (
-        <p className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 font-mono text-[11px] text-amber-200/80">
+        <p className="pointer-events-none absolute top-[4.75rem] left-1/2 -translate-x-1/2 font-mono text-[11px] text-amber-200/80">
           Playtesting draft · Esc editor
         </p>
       ) : null}

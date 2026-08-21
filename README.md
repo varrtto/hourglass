@@ -35,7 +35,8 @@ Arrows / WASD select · Enter confirm. **Esc** from play, gym, builder, or score
 | Back to menu | Esc | — |
 | Move | Arrows / WASD | D-pad / left stick |
 | Run | Shift | B / X |
-| Jump | Space / J / Z | A |
+| Jump | Space / Z | A |
+| Inventory | 1–5 / J K | — |
 | Crouch / drop from hang | Down | Down |
 | Climb from hang | Up or Jump | Up / A |
 | Reset | R / Enter | Start |
