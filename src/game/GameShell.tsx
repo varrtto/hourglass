@@ -8,10 +8,17 @@ import { Config } from "./menu/Config";
 import { Credits } from "./menu/Credits";
 import { ExitScreen, MainMenu } from "./menu/MainMenu";
 import { Scoreboard } from "./menu/Scoreboard";
+import { exitPlayViewport } from "./playViewport";
 import { useGameStore } from "./store";
 
 export function GameShell() {
   const screen = useGameStore((s) => s.screen);
+
+  useEffect(() => {
+    if (screen !== "play" && screen !== "gym") {
+      void exitPlayViewport();
+    }
+  }, [screen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

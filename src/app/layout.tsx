@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cinzel, Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -22,6 +22,21 @@ const cinzel = Cinzel({
 export const metadata: Metadata = {
   title: "Hourglass — movement gym",
   description: "Prince of Persia–style kinematic platformer gym",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Hourglass",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+  themeColor: "#0e0a08",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

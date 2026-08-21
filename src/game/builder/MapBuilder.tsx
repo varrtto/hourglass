@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { enterPlayViewport } from "../playViewport";
 import { fetchLevelMap } from "../queries";
 import { useGameStore } from "../store";
 import type { Level, TileId } from "../types";
@@ -175,6 +176,7 @@ export function MapBuilder() {
   }, [commit, heightField, pushUndo, widthField]);
 
   const playtest = useCallback(() => {
+    void enterPlayViewport();
     startPlaytest(cloneLevel(docRef.current));
   }, [startPlaytest]);
 

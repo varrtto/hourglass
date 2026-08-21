@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { enterPlayViewport } from "../playViewport";
 import { type AppScreen, useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
 
@@ -25,6 +26,7 @@ export function MainMenu() {
       if (!item) return;
       if (item.screen === "play" || item.screen === "gym") {
         useGameStore.getState().setPlaytestFromBuilder(false);
+        void enterPlayViewport();
       }
       setScreen(item.screen);
       if (item.screen === "exited") {

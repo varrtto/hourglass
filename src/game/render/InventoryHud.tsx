@@ -4,7 +4,11 @@ import { useEffect } from "react";
 import { INVENTORY_SIZE } from "../types";
 import { useGameStore } from "../store";
 
-export function InventoryHud() {
+export function InventoryHud({
+  interactive = false,
+}: {
+  interactive?: boolean;
+}) {
   const inventory = useGameStore((s) => s.inventory);
   const selectedSlot = useGameStore((s) => s.selectedSlot);
 
@@ -35,7 +39,9 @@ export function InventoryHud() {
 
   return (
     <div
-      className="pointer-events-none absolute top-3 left-1/2 z-10 -translate-x-1/2"
+      className={`absolute top-3 left-1/2 z-30 -translate-x-1/2 ${
+        interactive ? "" : "pointer-events-none"
+      }`}
       role="toolbar"
       aria-label="Inventory"
     >
@@ -43,9 +49,19 @@ export function InventoryHud() {
         {inventory.map((item, index) => {
           const active = index === selectedSlot;
           return (
-            <div
+            <button
               key={index}
+              type="button"
+              tabIndex={interactive ? 0 : -1}
+              aria-pressed={active}
+              onPointerDown={(e) => {
+                if (!interactive) return;
+                e.preventDefault();
+                useGameStore.getState().setSelectedSlot(index);
+              }}
               className={`relative flex size-11 items-center justify-center rounded-sm border ${
+                interactive ? "touch-none" : ""
+              } ${
                 active
                   ? "border-amber-300 bg-amber-200/15 shadow-[0_0_10px_rgba(232,197,71,0.35)]"
                   : "border-amber-200/25 bg-[#1a1410]/80"
@@ -63,13 +79,15 @@ export function InventoryHud() {
               >
                 {index + 1}
               </span>
-            </div>
+            </button>
           );
         })}
       </div>
-      <p className="font-mono mt-1 text-center text-[9px] tracking-wide text-amber-100/40">
-        1–{INVENTORY_SIZE} select · J / K
-      </p>
+      {interactive ? null : (
+        <p className="font-mono mt-1 text-center text-[9px] tracking-wide text-amber-100/40">
+          1–{INVENTORY_SIZE} select · J / K
+        </p>
+      )}
     </div>
   );
 }

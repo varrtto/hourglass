@@ -177,7 +177,13 @@ export function GameCanvas({
     <Canvas
       dpr={1}
       gl={{ antialias: false }}
-      style={{ width: "100%", height: "100%", imageRendering: "pixelated" }}
+      style={{
+        width: "100%",
+        height: "100%",
+        imageRendering: "pixelated",
+        pointerEvents: "none",
+        touchAction: "none",
+      }}
     >
       <color attach="background" args={["#0e0a08"]} />
       <OrthographicCamera makeDefault position={camPos} near={0.1} far={50} />

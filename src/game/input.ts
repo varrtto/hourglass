@@ -20,20 +20,37 @@ const KEY_DOWN = new Set(["arrowdown", "s"]);
 const KEY_JUMP = new Set([" ", "space", "spacebar", "z"]);
 const KEY_RUN = new Set(["shift"]);
 
+type HeldAction = "left" | "right" | "up" | "down" | "jump" | "run";
+
+const EMPTY_HELD: Record<HeldAction, boolean> = {
+  left: false,
+  right: false,
+  up: false,
+  down: false,
+  jump: false,
+  run: false,
+};
+
 export class InputController {
   readonly frame: InputFrame = createInputFrame();
-  private keys = {
-    left: false,
-    right: false,
-    up: false,
-    down: false,
-    jump: false,
-    run: false,
-  };
+  private keys = { ...EMPTY_HELD };
+  private touch = { ...EMPTY_HELD };
   private jumpWasDown = false;
   private resetWasDown = false;
   private jumpEdge = false;
   private resetEdge = false;
+
+  setTouch(action: HeldAction, down: boolean) {
+    this.touch[action] = down;
+  }
+
+  clearTouch() {
+    this.touch = { ...EMPTY_HELD };
+  }
+
+  pressReset() {
+    this.resetEdge = true;
+  }
 
   attach(target: Window | HTMLElement = window) {
     const down = (e: Event) => this.onKey(e as KeyboardEvent, true);
@@ -68,18 +85,18 @@ export class InputController {
 
   beginFrame() {
     const pad = this.readPad();
-    const jump = this.keys.jump || pad.jump;
+    const jump = this.keys.jump || this.touch.jump || pad.jump;
     if (jump && !this.jumpWasDown) this.jumpEdge = true;
     this.jumpWasDown = jump;
     if (pad.reset && !this.resetWasDown) this.resetEdge = true;
     this.resetWasDown = pad.reset;
 
-    this.frame.left = this.keys.left || pad.left;
-    this.frame.right = this.keys.right || pad.right;
-    this.frame.up = this.keys.up || pad.up;
-    this.frame.down = this.keys.down || pad.down;
+    this.frame.left = this.keys.left || this.touch.left || pad.left;
+    this.frame.right = this.keys.right || this.touch.right || pad.right;
+    this.frame.up = this.keys.up || this.touch.up || pad.up;
+    this.frame.down = this.keys.down || this.touch.down || pad.down;
     this.frame.jump = jump;
-    this.frame.run = this.keys.run || pad.run;
+    this.frame.run = this.keys.run || this.touch.run || pad.run;
     this.frame.jumpPressed = this.jumpEdge;
     this.frame.resetPressed = this.resetEdge;
     this.jumpEdge = false;

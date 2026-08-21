@@ -9,6 +9,12 @@ import { GameCanvas } from "./render/GameCanvas";
 import { ControlsHint, DebugHud } from "./render/DebugHud";
 import { InventoryHud } from "./render/InventoryHud";
 import { TuningPanel } from "./render/TuningPanel";
+import { TouchControls } from "./TouchControls";
+import {
+  enterPlayViewport,
+  useCoarsePointer,
+  usePortrait,
+} from "./playViewport";
 import { useGameStore } from "./store";
 
 export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
@@ -17,6 +23,9 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
   const playtestFromBuilder = useGameStore((s) => s.playtestFromBuilder);
   const playtestRevision = useGameStore((s) => s.playtestRevision);
   const [input] = useState(() => new InputController());
+  const coarse = useCoarsePointer();
+  const portrait = usePortrait();
+  const sideways = coarse && portrait;
   const practice = mode === "practice";
   const useDraft = playtestFromBuilder && draftLevel != null;
 
@@ -32,6 +41,18 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
   });
 
   useEffect(() => input.attach(window), [input]);
+
+  useEffect(() => {
+    void enterPlayViewport();
+    const onGesture = () => {
+      void enterPlayViewport();
+    };
+    window.addEventListener("pointerdown", onGesture, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", onGesture);
+      input.clearTouch();
+    };
+  }, [input]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -54,8 +75,14 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
   const failed = !useDraft && (levelQuery.isError || !level);
 
   return (
-    <div className="relative h-dvh w-full bg-[#0e0a08]">
-      {practice ? <TuningPanel /> : null}
+    <div
+      className={
+        sideways
+          ? "fixed top-0 left-[100dvw] z-10 h-[100dvw] w-[100dvh] origin-top-left rotate-90 overflow-hidden bg-[#0e0a08] select-none touch-none"
+          : `relative h-dvh w-full overflow-hidden bg-[#0e0a08] select-none ${coarse ? "touch-none" : ""}`
+      }
+    >
+      {practice && !coarse ? <TuningPanel /> : null}
       {loading ? (
         <p className="p-6 font-mono text-amber-100">Loading gym…</p>
       ) : failed || !level ? (
@@ -66,13 +93,17 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
         </div>
       )}
       {practice ? <DebugHud /> : null}
-      <InventoryHud />
+      <InventoryHud interactive={coarse} />
       {useDraft ? (
         <p className="pointer-events-none absolute top-[4.75rem] left-1/2 -translate-x-1/2 font-mono text-[11px] text-amber-200/80">
           Playtesting draft · Esc editor
         </p>
       ) : null}
-      <ControlsHint />
+      {coarse ? (
+        <TouchControls input={input} rotated={sideways} />
+      ) : (
+        <ControlsHint />
+      )}
       {spritesQuery.data ? (
         <span className="sr-only">
           Sprite sheet {spritesQuery.data.image} ready
