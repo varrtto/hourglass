@@ -15,7 +15,7 @@ export type SpriteManifest = {
 
 export type AudioPlaylist = {
   music: Array<{ id: string; src: string; loop: boolean }>;
-  sfx: Array<{ id: string; src: string }>;
+  sfx: Array<{ id: string; src: string; volume?: number }>;
 };
 
 export const queryKeys = {

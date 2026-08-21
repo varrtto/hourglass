@@ -25,20 +25,21 @@ let disconnectPatched = false;
 function patchTinyDisconnect() {
   if (disconnectPatched || typeof AudioNode === "undefined") return;
   disconnectPatched = true;
-  const orig = AudioNode.prototype.disconnect;
+  type DisconnectFn = (this: AudioNode, ...args: unknown[]) => void;
+  const orig = AudioNode.prototype.disconnect as DisconnectFn;
   AudioNode.prototype.disconnect = function (
     this: AudioNode,
     ...args: unknown[]
   ) {
     try {
-      return orig.apply(this, args as []);
+      return orig.apply(this, args);
     } catch (err) {
       if (err instanceof DOMException && err.name === "InvalidAccessError") {
         return;
       }
       throw err;
     }
-  };
+  } as AudioNode["disconnect"];
 }
 
 function plugin(

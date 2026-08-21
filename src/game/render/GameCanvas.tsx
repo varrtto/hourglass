@@ -10,6 +10,7 @@ import { createWorld, snapshotDebug, stepWorld } from "../player/fsm";
 import type { Kinematics, Level, World } from "../types";
 import { useGameStore } from "../store";
 import { LayerBackdrop, LevelView } from "./LevelView";
+import { playSfx } from "../audio/sfx";
 
 const STATE_COLORS: Record<string, string> = {
   idle: "#e8d5b5",
@@ -39,6 +40,8 @@ function Sim({
   const kinematics = useGameStore((s) => s.kinematics);
   const paused = useGameStore((s) => s.paused);
   const setDebug = useGameStore((s) => s.setDebug);
+  const wasSprinting = useRef(false);
+  const wasJumping = useRef(false);
 
   useFrame((_, delta) => {
     if (
@@ -52,6 +55,16 @@ function Sim({
       input.beginFrame();
       stepWorld(world, input.frame, kinematics, FIXED_DT);
     });
+    const p = world.player;
+    const sprinting =
+      !paused &&
+      input.frame.run &&
+      (p.state === "run" || p.state === "runJump");
+    if (sprinting && !wasSprinting.current) playSfx("breathing");
+    wasSprinting.current = sprinting;
+    const jumping = p.state === "standJump" || p.state === "runJump";
+    if (jumping && !wasJumping.current) playSfx("jump");
+    wasJumping.current = jumping;
     debugAcc.current += delta;
     if (debugAcc.current >= 0.08) {
       debugAcc.current = 0;

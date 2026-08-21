@@ -79,15 +79,13 @@ The gym currently draws a placeholder box colored by FSM state. Wire the sheet i
 
 ## Music pipeline
 
-Edit `public/audio/playlist.json`. Menu `.mid` files play through `react-midi-player`. Other loops and SFX use the HTML `Audio` element. Missing files no-op.
+Edit `public/audio/playlist.json`. Menu `.mid` files play through `react-midi-player`. Other loops and SFX use the HTML `Audio` element. Missing files no-op. Optional `"volume"` on an SFX entry is `0`–`1` (default `1`).
 
 ```
 public/audio/music/Moonspell - Vampiria.mid   # looping main-menu theme
 public/audio/music/gym.ogg                    # looping gym theme
-public/audio/sfx/jump.wav
-public/audio/sfx/land.wav
-public/audio/sfx/hang.wav
-public/audio/sfx/climb.wav
+public/audio/sfx/jump-1.ogg
+public/audio/sfx/breathing.ogg   # plays once when Shift-run starts
 ```
 
 Click or press a key once to unlock audio (browser autoplay). **M** toggles mute. **Config** has a music volume slider.
