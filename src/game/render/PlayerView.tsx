@@ -1,25 +1,114 @@
 "use client";
 
-import { useRef } from "react";
-import { useFrame } from "@react-three/fiber";
-import type { Mesh } from "three";
+import { useLayoutEffect, useMemo, useRef } from "react";
+import { useFrame, useLoader } from "@react-three/fiber";
+import * as THREE from "three";
 import type { Player, PlayerState } from "../types";
+import type { SpriteManifest } from "../queries";
 
-const STATE_COLOR: Record<PlayerState, string> = {
-  idle: "#e8d5b5",
-  turn: "#d4c4a0",
-  run: "#f0e0c0",
-  skid: "#c9b48a",
-  standJump: "#ffe8a8",
-  runJump: "#ffd27a",
-  fall: "#c4d4e8",
-  land: "#b8c4a8",
-  hang: "#f4c4a0",
-  climb: "#e8b080",
-  crouch: "#c8b898",
-  dead: "#6a3030",
+const STATE_TAG: Record<PlayerState, string> = {
+  idle: "idle",
+  turn: "turn",
+  run: "run",
+  skid: "skid",
+  standJump: "stand_jump",
+  runJump: "run_jump",
+  fall: "fall",
+  land: "land",
+  hang: "hang",
+  climb: "climb",
+  crouch: "crouch",
+  dead: "dead",
 };
 
+const LOOPING = new Set([
+  "idle",
+  "run",
+  "fall",
+  "hang",
+  "crouch",
+]);
+
+export function LiveSpritePlayer({
+  worldRef,
+  standHeight,
+  sprites,
+}: {
+  worldRef: { current: { player: Player } | null };
+  standHeight: number;
+  sprites: SpriteManifest;
+}) {
+  const mesh = useRef<THREE.Mesh>(null);
+  const baseTex = useLoader(THREE.TextureLoader, sprites.image);
+  const tex = useMemo(() => {
+    const t = baseTex.clone();
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.magFilter = THREE.NearestFilter;
+    t.minFilter = THREE.NearestFilter;
+    t.generateMipmaps = false;
+    t.wrapS = THREE.ClampToEdgeWrapping;
+    t.wrapT = THREE.ClampToEdgeWrapping;
+    t.needsUpdate = true;
+    return t;
+  }, [baseTex]);
+
+  const cols = useMemo(() => {
+    if (sprites.columns && sprites.columns > 0) return sprites.columns;
+    const img = baseTex.image as { width?: number } | undefined;
+    const w = img?.width ?? sprites.frameWidth;
+    return Math.max(1, Math.floor(w / sprites.frameWidth));
+  }, [sprites, baseTex]);
+
+  const rows = useMemo(() => {
+    const img = baseTex.image as { height?: number } | undefined;
+    const h = img?.height ?? sprites.frameHeight;
+    return Math.max(1, Math.floor(h / sprites.frameHeight));
+  }, [sprites, baseTex]);
+
+  useLayoutEffect(() => {
+    tex.repeat.set(1 / cols, 1 / rows);
+    tex.needsUpdate = true;
+  }, [tex, cols, rows]);
+
+  useFrame(() => {
+    const p = worldRef.current?.player;
+    const m = mesh.current;
+    if (!p || !m) return;
+
+    const tagName = STATE_TAG[p.state] ?? "idle";
+    const tag = sprites.tags[tagName] ?? sprites.tags.idle;
+    const count = Math.max(1, tag.to - tag.from + 1);
+    const frameOffset = Math.floor(p.timer * tag.fps);
+    const local = LOOPING.has(tagName)
+      ? frameOffset % count
+      : Math.min(frameOffset, count - 1);
+    const frame = tag.from + local;
+    const col = frame % cols;
+    const row = Math.floor(frame / cols);
+    tex.offset.set(col / cols, 1 - (row + 1) / rows);
+
+    const aspect = sprites.frameWidth / sprites.frameHeight;
+    const displayH = 2.2 * (p.height / standHeight);
+    const displayW = displayH * aspect;
+    m.position.set(p.x, p.y + displayH / 2, 0.25);
+    m.scale.set(p.facing * displayW, displayH, 1);
+  });
+
+  return (
+    <mesh ref={mesh} frustumCulled={false}>
+      <planeGeometry args={[1, 1]} />
+      <meshBasicMaterial
+        map={tex}
+        transparent
+        alphaTest={0.1}
+        depthWrite={false}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
+/** Fallback colored box when the sheet has not loaded yet. */
 export function PlayerView({
   player,
   width,
@@ -27,7 +116,7 @@ export function PlayerView({
   player: Player;
   width: number;
 }) {
-  const ref = useRef<Mesh>(null);
+  const ref = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
     const mesh = ref.current;
@@ -39,18 +128,7 @@ export function PlayerView({
   return (
     <mesh ref={ref} position={[player.x, player.y + player.height / 2, 0.2]}>
       <boxGeometry args={[width, 1, 0.45]} />
-      <meshStandardMaterial
-        color={STATE_COLOR[player.state]}
-        roughness={0.6}
-      />
-      <mesh position={[0.12, 0.28, 0.23]} scale={[1, player.height, 1]}>
-        <boxGeometry args={[0.12, 0.08, 0.08]} />
-        <meshStandardMaterial color="#1a1210" />
-      </mesh>
+      <meshStandardMaterial color="#e8d5b5" roughness={0.6} />
     </mesh>
   );
-}
-
-export function playerColor(state: PlayerState) {
-  return STATE_COLOR[state];
 }

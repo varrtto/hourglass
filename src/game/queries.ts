@@ -10,6 +10,8 @@ export type SpriteManifest = {
   image: string;
   frameWidth: number;
   frameHeight: number;
+  columns?: number;
+  frameCount?: number;
   tags: Record<string, SpriteTag>;
 };
 

@@ -68,15 +68,14 @@ The earlier palace painting is kept at `public/art/menu-bg-palace.png`.
 
 ## Art pipeline (Aseprite)
 
-Drop a sprite sheet at `public/sprites/prince.png` and keep `public/sprites/prince.json` in sync.
+Player sheet: `public/sprites/prince.png` + `public/sprites/prince.json`.
+The original loose layout is kept at `public/sprites/prince-source.png`.
 
-- Filter: nearest-neighbor (the canvas already uses `image-rendering: pixelated` and `dpr={1}`)
-- Suggested frame size: **32×48** (or any size listed in the manifest)
-- Export a PNG sheet + JSON using these **frame tags**:
+- Filter: nearest-neighbor (`NearestFilter`, `dpr={1}`, `image-rendering: pixelated`)
+- Current packed frame size is in the JSON (`frameWidth` / `frameHeight`, 8 columns)
+- Frame tags: `idle` · `turn` · `run` · `skid` · `stand_jump` · `run_jump` · `fall` · `land` · `hang` · `climb` · `crouch` · `dead`
 
-`idle` · `turn` · `run` · `skid` · `stand_jump` · `run_jump` · `fall` · `land` · `hang` · `climb` · `crouch` · `dead`
-
-The gym currently draws a placeholder box colored by FSM state. Wire the sheet in `src/game/render/PlayerView.tsx` / `LivePlayer` when the PNG lands (load with `NearestFilter` / `NearestMipmapNearestFilter`).
+`LiveSpritePlayer` in `src/game/render/PlayerView.tsx` drives UVs from the FSM state.
 
 ## Music pipeline
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { Suspense, useMemo, useRef } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrthographicCamera } from "@react-three/drei";
 import * as THREE from "three";
@@ -10,29 +10,18 @@ import { createWorld, snapshotDebug, stepWorld } from "../player/fsm";
 import type { Kinematics, Level, World } from "../types";
 import { useGameStore } from "../store";
 import { LayerBackdrop, LevelView } from "./LevelView";
+import { LiveSpritePlayer } from "./PlayerView";
 import { playSfx } from "../audio/sfx";
-
-const STATE_COLORS: Record<string, string> = {
-  idle: "#e8d5b5",
-  turn: "#d4c4a0",
-  run: "#f0e0c0",
-  skid: "#c9b48a",
-  standJump: "#ffe8a8",
-  runJump: "#ffd27a",
-  fall: "#c4d4e8",
-  land: "#b8c4a8",
-  hang: "#f4c4a0",
-  climb: "#e8b080",
-  crouch: "#c8b898",
-  dead: "#6a3030",
-};
+import type { SpriteManifest } from "../queries";
 
 function Sim({
   level,
   input,
+  sprites,
 }: {
   level: Level;
   input: InputController;
+  sprites: SpriteManifest | null;
 }) {
   const worldRef = useRef<World | null>(null);
   const accRef = useRef(0);
@@ -79,13 +68,23 @@ function Sim({
       <FollowCamera worldRef={worldRef} level={level} />
       <LayerBackdrop width={level.width} height={level.height} />
       <LevelView level={level} />
-      <LivePlayer worldRef={worldRef} k={kinematics} />
+      {sprites ? (
+        <Suspense fallback={<LivePlayerFallback worldRef={worldRef} k={kinematics} />}>
+          <LiveSpritePlayer
+            worldRef={worldRef}
+            standHeight={kinematics.standHeight}
+            sprites={sprites}
+          />
+        </Suspense>
+      ) : (
+        <LivePlayerFallback worldRef={worldRef} k={kinematics} />
+      )}
       <LiveProjectiles worldRef={worldRef} />
     </>
   );
 }
 
-function LivePlayer({
+function LivePlayerFallback({
   worldRef,
   k,
 }: {
@@ -93,7 +92,6 @@ function LivePlayer({
   k: Kinematics;
 }) {
   const mesh = useRef<THREE.Mesh>(null);
-  const mat = useRef<THREE.MeshStandardMaterial>(null);
 
   useFrame(() => {
     const p = worldRef.current?.player;
@@ -101,19 +99,12 @@ function LivePlayer({
     if (!p || !m) return;
     m.position.set(p.x, p.y + p.height / 2, 0.25);
     m.scale.set(p.facing, p.height, 1);
-    if (mat.current) {
-      mat.current.color.set(STATE_COLORS[p.state] ?? "#ffffff");
-    }
   });
 
   return (
     <mesh ref={mesh}>
       <boxGeometry args={[k.bodyWidth, 1, 0.45]} />
-      <meshStandardMaterial ref={mat} roughness={0.55} />
-      <mesh position={[0.14, 0.32, 0.24]}>
-        <boxGeometry args={[0.1, 0.07, 0.08]} />
-        <meshStandardMaterial color="#1a1210" />
-      </mesh>
+      <meshStandardMaterial color="#e8d5b5" roughness={0.55} />
     </mesh>
   );
 }
@@ -221,9 +212,11 @@ function FollowCamera({
 export function GameCanvas({
   level,
   input,
+  sprites = null,
 }: {
   level: Level;
   input: InputController;
+  sprites?: SpriteManifest | null;
 }) {
   const camPos = useMemo(
     () => [level.spawn.x, level.spawn.y + 2, 12] as [number, number, number],
@@ -246,7 +239,7 @@ export function GameCanvas({
       <OrthographicCamera makeDefault position={camPos} near={0.1} far={50} />
       <ambientLight intensity={0.55} />
       <directionalLight position={[8, 14, 10]} intensity={1.15} />
-      <Sim level={level} input={input} />
+      <Sim level={level} input={input} sprites={sprites} />
     </Canvas>
   );
 }

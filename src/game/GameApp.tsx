@@ -86,7 +86,11 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
         <p className="p-6 font-mono text-red-300">Failed to load level.</p>
       ) : (
         <div className="absolute inset-0">
-          <GameCanvas level={level} input={input} />
+          <GameCanvas
+            level={level}
+            input={input}
+            sprites={spritesQuery.data ?? null}
+          />
         </div>
       )}
       {practice ? <DebugHud /> : null}
@@ -101,11 +105,6 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
       ) : (
         <ControlsHint />
       )}
-      {spritesQuery.data ? (
-        <span className="sr-only">
-          Sprite sheet {spritesQuery.data.image} ready
-        </span>
-      ) : null}
     </div>
   );
 }
