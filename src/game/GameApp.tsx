@@ -10,11 +10,8 @@ import { ControlsHint, DebugHud } from "./render/DebugHud";
 import { InventoryHud } from "./render/InventoryHud";
 import { TuningPanel } from "./render/TuningPanel";
 import { TouchControls } from "./TouchControls";
-import {
-  enterPlayViewport,
-  useCoarsePointer,
-  usePortrait,
-} from "./playViewport";
+import { useMobile } from "@/hooks/useMobile";
+import { enterPlayViewport, usePortrait } from "./playViewport";
 import { useGameStore } from "./store";
 
 export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
@@ -23,9 +20,9 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
   const playtestFromBuilder = useGameStore((s) => s.playtestFromBuilder);
   const playtestRevision = useGameStore((s) => s.playtestRevision);
   const [input] = useState(() => new InputController());
-  const coarse = useCoarsePointer();
+  const mobile = useMobile();
   const portrait = usePortrait();
-  const sideways = coarse && portrait;
+  const sideways = mobile && portrait;
   const practice = mode === "practice";
   const useDraft = playtestFromBuilder && draftLevel != null;
 
@@ -79,10 +76,10 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
       className={
         sideways
           ? "fixed top-0 left-[100dvw] z-10 h-[100dvw] w-[100dvh] origin-top-left rotate-90 overflow-hidden bg-[#0e0a08] select-none touch-none"
-          : `relative h-dvh w-full overflow-hidden bg-[#0e0a08] select-none ${coarse ? "touch-none" : ""}`
+          : `relative h-dvh w-full overflow-hidden bg-[#0e0a08] select-none ${mobile ? "touch-none" : ""}`
       }
     >
-      {practice && !coarse ? <TuningPanel /> : null}
+      {practice && !mobile ? <TuningPanel /> : null}
       {loading ? (
         <p className="p-6 font-mono text-amber-100">Loading gym…</p>
       ) : failed || !level ? (
@@ -93,13 +90,13 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
         </div>
       )}
       {practice ? <DebugHud /> : null}
-      <InventoryHud interactive={coarse} />
+      <InventoryHud interactive={mobile} />
       {useDraft ? (
         <p className="pointer-events-none absolute top-[4.75rem] left-1/2 -translate-x-1/2 font-mono text-[11px] text-amber-200/80">
           Playtesting draft · Esc editor
         </p>
       ) : null}
-      {coarse ? (
+      {mobile ? (
         <TouchControls input={input} rotated={sideways} />
       ) : (
         <ControlsHint />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useMobile } from "@/hooks/useMobile";
 import { useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
 import { ScrollingText } from "./ScrollingText";
@@ -18,6 +19,7 @@ const LOREM = [
 
 export function Credits() {
   const setScreen = useGameStore((s) => s.setScreen);
+  const mobile = useMobile();
   const skip = useCallback(() => setScreen("menu"), [setScreen]);
 
   return (
@@ -42,7 +44,7 @@ export function Credits() {
         </p>
       </ScrollingText>
       <p className="pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2 font-mono text-[11px] tracking-wide text-amber-100/45">
-        Esc return
+        {mobile ? "Tap to skip" : "Esc return"}
       </p>
     </MenuBackdrop>
   );

@@ -1,36 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+import { isMobile } from "@/hooks/useMobile";
 
-const COARSE = "(pointer: coarse), (hover: none)";
 const PORTRAIT = "(orientation: portrait)";
 
-function matches(query: string) {
-  return typeof window !== "undefined" && window.matchMedia(query).matches;
+function subscribePortrait(onChange: () => void) {
+  const mq = window.matchMedia(PORTRAIT);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
 }
 
-export function isMobilePlayDevice() {
-  return matches(COARSE);
-}
-
-function useMedia(query: string) {
-  const [value, setValue] = useState(() => matches(query));
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const sync = () => setValue(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, [query]);
-  return value;
-}
-
-export function useCoarsePointer() {
-  return useMedia(COARSE);
+function getPortrait() {
+  return window.matchMedia(PORTRAIT).matches;
 }
 
 export function usePortrait() {
-  return useMedia(PORTRAIT);
+  return useSyncExternalStore(subscribePortrait, getPortrait, () => false);
 }
 
 type FsEl = HTMLElement & {
@@ -44,7 +30,7 @@ type OrientationLock = ScreenOrientation & {
 };
 
 export async function enterPlayViewport() {
-  if (typeof window === "undefined" || !isMobilePlayDevice()) return;
+  if (typeof window === "undefined" || !isMobile()) return;
   const el = document.documentElement as FsEl;
   try {
     if (!document.fullscreenElement) {

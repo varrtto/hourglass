@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useSyncExternalStore } from "react";
+import { useMobile } from "@/hooks/useMobile";
 
 function subscribeMotion(onStoreChange: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -21,6 +22,7 @@ export function ScrollingText({
   durationSec?: number;
   onSkip?: () => void;
 }) {
+  const mobile = useMobile();
   const reduceMotion = useSyncExternalStore(
     subscribeMotion,
     getReduceMotion,
@@ -40,7 +42,10 @@ export function ScrollingText({
   }, [onSkip]);
 
   return (
-    <div className="hourglass-crawl-mask relative h-full w-full overflow-hidden">
+    <div
+      className="hourglass-crawl-mask relative h-full w-full overflow-hidden"
+      onClick={mobile && onSkip ? onSkip : undefined}
+    >
       {reduceMotion ? (
         <div className="h-full overflow-y-auto px-8 py-16 sm:px-16">
           <div className="mx-auto max-w-xl pb-16">{children}</div>

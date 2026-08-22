@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useMobile } from "@/hooks/useMobile";
 import { useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
 
@@ -14,6 +15,7 @@ function formatTime(ms: number) {
 export function Scoreboard() {
   const setScreen = useGameStore((s) => s.setScreen);
   const scores = useGameStore((s) => s.scores);
+  const mobile = useMobile();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -75,9 +77,11 @@ export function Scoreboard() {
         >
           ▸ Back
         </button>
-        <p className="font-mono mt-6 text-[11px] tracking-wide text-amber-100/45">
-          Esc return
-        </p>
+        {!mobile ? (
+          <p className="font-mono mt-6 text-[11px] tracking-wide text-amber-100/45">
+            Esc return
+          </p>
+        ) : null}
       </div>
     </MenuBackdrop>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useMobile } from "@/hooks/useMobile";
 import { enterPlayViewport } from "../playViewport";
 import { type AppScreen, useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
@@ -18,6 +19,7 @@ const ITEMS: { screen: AppScreen; label: string }[] = [
 export function MainMenu() {
   const setScreen = useGameStore((s) => s.setScreen);
   const muted = useGameStore((s) => s.muted);
+  const mobile = useMobile();
   const [selected, setSelected] = useState(0);
 
   const activate = useCallback(
@@ -128,9 +130,11 @@ export function MainMenu() {
           })}
         </nav>
 
-        <p className="font-mono mt-8 hidden text-[11px] tracking-wide text-amber-100/45 sm:mt-16 sm:block [@media(max-height:520px)]:hidden">
-          Arrows / WASD select · Enter confirm · M {muted ? "unmute" : "mute"}
-        </p>
+        {!mobile ? (
+          <p className="font-mono mt-8 hidden text-[11px] tracking-wide text-amber-100/45 sm:mt-16 sm:block [@media(max-height:520px)]:hidden">
+            Arrows / WASD select · Enter confirm · M {muted ? "unmute" : "mute"}
+          </p>
+        ) : null}
       </div>
     </MenuBackdrop>
   );
@@ -138,6 +142,7 @@ export function MainMenu() {
 
 export function ExitScreen() {
   const setScreen = useGameStore((s) => s.setScreen);
+  const mobile = useMobile();
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -166,6 +171,11 @@ export function ExitScreen() {
         >
           ▸ Return to menu
         </button>
+        {!mobile ? (
+          <p className="font-mono mt-6 text-[11px] tracking-wide text-amber-100/45">
+            Esc / Enter return
+          </p>
+        ) : null}
       </div>
     </MenuBackdrop>
   );

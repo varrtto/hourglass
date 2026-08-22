@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useMobile } from "@/hooks/useMobile";
 import { enterPlayViewport } from "../playViewport";
 import { fetchLevelMap } from "../queries";
 import { useGameStore } from "../store";
@@ -51,6 +52,7 @@ export function MapBuilder() {
   const startPlaytest = useGameStore((s) => s.startPlaytest);
   const setDraftLevel = useGameStore((s) => s.setDraftLevel);
   const storyHeight = useGameStore((s) => s.kinematics.storyHeight);
+  const mobile = useMobile();
   const [doc, setDoc] = useState<Level>(() => {
     const draft = useGameStore.getState().draftLevel;
     return draft ? cloneLevel(draft) : createBlankLevel();
@@ -314,8 +316,9 @@ export function MapBuilder() {
         </span>
         {status ? <span className="text-amber-200/70">{status}</span> : null}
         <span className="ml-auto">
-          1–5 tools · drag paint · space/middle pan · wheel zoom · ⌘Z undo · Esc
-          menu
+          {mobile
+            ? "Tap tools · drag paint · pinch zoom · Menu to leave"
+            : "1–5 tools · drag paint · space/middle pan · wheel zoom · ⌘Z undo · Esc menu"}
         </span>
       </footer>
     </div>

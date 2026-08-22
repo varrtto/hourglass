@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useMobile } from "@/hooks/useMobile";
 import { useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
 
@@ -13,6 +14,7 @@ export function Config() {
   const setMuted = useGameStore((s) => s.setMuted);
   const musicVolume = useGameStore((s) => s.musicVolume);
   const setMusicVolume = useGameStore((s) => s.setMusicVolume);
+  const mobile = useMobile();
   const percent = Math.round(musicVolume * 100);
   const [selected, setSelected] = useState(0);
 
@@ -138,9 +140,12 @@ export function Config() {
           </button>
         </nav>
 
-        <p className="font-mono mt-16 text-[11px] tracking-wide text-amber-100/45">
-          Arrows / WASD select · Left / Right volume · Enter confirm · Esc return
-        </p>
+        {!mobile ? (
+          <p className="font-mono mt-16 text-[11px] tracking-wide text-amber-100/45">
+            Arrows / WASD select · Left / Right volume · Enter confirm · Esc
+            return
+          </p>
+        ) : null}
       </div>
     </MenuBackdrop>
   );
