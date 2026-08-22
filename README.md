@@ -2,7 +2,7 @@
 
 Prince of Persia–style **kinematic** platformer gym. Movement is a state machine on a tile grid (run, jump, hang, climb, fall-by-stories), not a rigid-body physics engine.
 
-Stack: Next.js, TypeScript, Three.js (`@react-three/fiber` + drei), Zustand, TanStack Query, `react-midi-player`, Leva, Tiled JSON.
+Stack: Next.js, TypeScript, Canvas 2D, Zustand, TanStack Query, `react-midi-player`, Leva, Tiled JSON.
 
 ```bash
 npm install
@@ -71,11 +71,11 @@ The earlier palace painting is kept at `public/art/menu-bg-palace.png`.
 Player sheet: `public/sprites/prince.png` + `public/sprites/prince.json`.
 The original loose layout is kept at `public/sprites/prince-source.png`.
 
-- Filter: nearest-neighbor (`NearestFilter`, `dpr={1}`, `image-rendering: pixelated`)
+- Filter: nearest-neighbor (`imageSmoothingEnabled = false`, `image-rendering: pixelated`)
 - Current packed frame size is in the JSON (`frameWidth` / `frameHeight`, 8 columns)
 - Frame tags: `idle` · `turn` · `run` · `skid` · `stand_jump` · `run_jump` · `fall` · `land` · `hang` · `climb` · `crouch` · `dead`
 
-`LiveSpritePlayer` in `src/game/render/PlayerView.tsx` drives UVs from the FSM state.
+`drawPlayer` in `src/game/render/PlayerView.tsx` blits frames from the FSM state.
 
 ## Music pipeline
 
@@ -122,15 +122,11 @@ Main menu → **Map Builder**. The grid is runtime space (y-up, 1 tile = 1 unit)
 
 The session stays in memory if you leave for the menu and come back. Practice Gym from the main menu still loads `gym.json`, not the draft.
 
-## Hybrid 3D later
+## Rendering
 
-Gameplay lives in 2D tile space (`x`, `y`). `LayerBackdrop` is already three Z layers:
+Gameplay lives in 2D tile space (`x`, `y`, y-up). The play view is a single HTML canvas (`GameCanvas`) that draws backdrop, tiles, the prince sheet, and projectiles each frame. Camera zoom matches the old ortho setup (`pixelsPerTile ≈ height/12`).
 
-- `z ≈ -6` palace wall (replace the plane with a room mesh)
-- `z ≈ 0` playfield tiles + player
-- `z ≈ 2.4` foreground columns (no collision)
-
-Keep `src/game/player/fsm.ts` as the source of truth; only replace meshes in `src/game/render/`.
+Keep `src/game/player/fsm.ts` as the source of truth; only change draw helpers under `src/game/render/`.
 
 ## Code map
 
@@ -143,4 +139,4 @@ Keep `src/game/player/fsm.ts` as the source of truth; only replace meshes in `sr
 - `src/game/player/fsm.ts` — PoP kinematic controller
 - `src/game/store.ts` — Zustand (screen, pause, mute, Leva tunables, debug HUD, scores)
 - `src/game/queries.ts` — TanStack Query fetchers for level / sprites / audio
-- `src/game/render/GameCanvas.tsx` — R3F ortho camera, integer zoom
+- `src/game/render/GameCanvas.tsx` — Canvas 2D loop, camera, draw

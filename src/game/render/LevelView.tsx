@@ -1,6 +1,3 @@
-"use client";
-
-import { useMemo } from "react";
 import type { Level, TileId } from "../types";
 import { TILE_LEDGE, TILE_SOLID, TILE_SPIKE } from "../types";
 
@@ -10,82 +7,77 @@ const COLORS: Record<number, string> = {
   [TILE_SPIKE]: "#8b1e2d",
 };
 
-export function LevelView({ level }: { level: Level }) {
-  const tiles = useMemo(() => {
-    const list: { x: number; y: number; id: TileId }[] = [];
-    for (let y = 0; y < level.height; y++) {
-      for (let x = 0; x < level.width; x++) {
-        const id = level.tiles[y * level.width + x] as TileId;
-        if (id) list.push({ x, y, id });
-      }
-    }
-    return list;
-  }, [level]);
+export type Camera2D = {
+  x: number;
+  y: number;
+  ppt: number;
+  viewW: number;
+  viewH: number;
+  screenW: number;
+  screenH: number;
+};
 
-  return (
-    <group>
-      {tiles.map((t) => {
-        const ledge = t.id === TILE_LEDGE;
-        const spike = t.id === TILE_SPIKE;
-        return (
-          <mesh
-            key={`${t.x}-${t.y}`}
-            position={[
-              t.x + 0.5,
-              ledge ? t.y + 0.86 : t.y + 0.5,
-              0,
-            ]}
-          >
-            <boxGeometry
-              args={
-                ledge
-                  ? [1, 0.28, 0.7]
-                  : spike
-                    ? [0.85, 0.7, 0.7]
-                    : [1, 1, 0.75]
-              }
-            />
-            <meshStandardMaterial
-              color={COLORS[t.id]}
-              roughness={0.85}
-              metalness={0.05}
-            />
-          </mesh>
-        );
-      })}
-    </group>
-  );
+/** World (y-up) → canvas pixel (y-down). */
+export function worldToScreen(
+  cam: Camera2D,
+  wx: number,
+  wy: number,
+): { x: number; y: number } {
+  return {
+    x: (wx - cam.x) * cam.ppt + cam.screenW / 2,
+    y: (cam.y - wy) * cam.ppt + cam.screenH / 2,
+  };
 }
 
-export function LayerBackdrop({
-  width,
-  height,
-}: {
-  width: number;
-  height: number;
-}) {
-  return (
-    <>
-      {/* Distant palace wall — swap this plane for a 3D room mesh later */}
-      <mesh position={[width / 2, height / 2, -6]}>
-        <planeGeometry args={[width + 8, height + 8]} />
-        <meshStandardMaterial color="#1c1410" />
-      </mesh>
-      <mesh position={[width / 2, height / 2 + 2, -4]}>
-        <planeGeometry args={[width * 0.7, height * 0.45]} />
-        <meshStandardMaterial color="#2a1c16" />
-      </mesh>
-      {Array.from({ length: Math.ceil(width / 8) }, (_, i) => (
-        <mesh key={i} position={[4 + i * 8, height / 2, 2.4]}>
-          <boxGeometry args={[0.55, height + 2, 0.55]} />
-          <meshStandardMaterial
-            color="#3a2a22"
-            transparent
-            opacity={0.35}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
-    </>
+export function drawBackdrop(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
+  ctx.fillStyle = "#0e0a08";
+  ctx.fillRect(0, 0, cam.screenW, cam.screenH);
+
+  const origin = worldToScreen(cam, 0, level.height);
+  const w = level.width * cam.ppt;
+  const h = level.height * cam.ppt;
+
+  ctx.fillStyle = "#1c1410";
+  ctx.fillRect(origin.x - 4 * cam.ppt, origin.y - 4 * cam.ppt, w + 8 * cam.ppt, h + 8 * cam.ppt);
+
+  ctx.fillStyle = "#2a1c16";
+  ctx.fillRect(
+    origin.x + level.width * 0.15 * cam.ppt,
+    origin.y + level.height * 0.2 * cam.ppt,
+    level.width * 0.7 * cam.ppt,
+    level.height * 0.45 * cam.ppt,
   );
+
+  ctx.fillStyle = "rgba(58, 42, 34, 0.35)";
+  for (let i = 0; i < Math.ceil(level.width / 8); i++) {
+    const x = origin.x + (4 + i * 8) * cam.ppt - 0.275 * cam.ppt;
+    ctx.fillRect(x, origin.y - cam.ppt, 0.55 * cam.ppt, h + 2 * cam.ppt);
+  }
+}
+
+export function drawLevel(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
+  for (let ty = 0; ty < level.height; ty++) {
+    for (let tx = 0; tx < level.width; tx++) {
+      const id = level.tiles[ty * level.width + tx] as TileId;
+      if (!id) continue;
+      const color = COLORS[id] ?? "#888";
+      ctx.fillStyle = color;
+
+      if (id === TILE_LEDGE) {
+        const p = worldToScreen(cam, tx, ty + 1);
+        ctx.fillRect(p.x, p.y + 0.14 * cam.ppt, cam.ppt, 0.28 * cam.ppt);
+      } else if (id === TILE_SPIKE) {
+        const p = worldToScreen(cam, tx + 0.075, ty + 0.7);
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + 0.425 * cam.ppt, p.y - 0.7 * cam.ppt);
+        ctx.lineTo(p.x + 0.85 * cam.ppt, p.y);
+        ctx.closePath();
+        ctx.fill();
+      } else if (id === TILE_SOLID) {
+        const p = worldToScreen(cam, tx, ty + 1);
+        ctx.fillRect(p.x, p.y, cam.ppt, cam.ppt);
+      }
+    }
+  }
 }
