@@ -37,13 +37,43 @@ export function MainMenu() {
   );
 
   useEffect(() => {
+    const compactMenu = () =>
+      window.matchMedia("(max-width: 639px), (max-height: 520px)").matches;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowDown" || e.key.toLowerCase() === "s") {
+      const cols = compactMenu() ? 2 : 1;
+      const rows = Math.ceil(ITEMS.length / cols);
+      const key = e.key.toLowerCase();
+      if (e.key === "ArrowDown" || key === "s") {
         e.preventDefault();
-        setSelected((i) => (i + 1) % ITEMS.length);
-      } else if (e.key === "ArrowUp" || e.key.toLowerCase() === "w") {
+        setSelected((i) => {
+          if (cols === 1) return (i + 1) % ITEMS.length;
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const nextRow = row + 1;
+          if (nextRow < rows && nextRow * cols + col < ITEMS.length) {
+            return nextRow * cols + col;
+          }
+          return col;
+        });
+      } else if (e.key === "ArrowUp" || key === "w") {
         e.preventDefault();
-        setSelected((i) => (i - 1 + ITEMS.length) % ITEMS.length);
+        setSelected((i) => {
+          if (cols === 1) return (i - 1 + ITEMS.length) % ITEMS.length;
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          if (row > 0) return (row - 1) * cols + col;
+          let last = rows - 1;
+          while (last * cols + col >= ITEMS.length) last -= 1;
+          return last * cols + col;
+        });
+      } else if (e.key === "ArrowRight" || key === "d") {
+        if (cols === 1) return;
+        e.preventDefault();
+        setSelected((i) => Math.min(ITEMS.length - 1, i + 1));
+      } else if (e.key === "ArrowLeft" || key === "a") {
+        if (cols === 1) return;
+        e.preventDefault();
+        setSelected((i) => Math.max(0, i - 1));
       } else if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         activate(selected);
@@ -55,16 +85,19 @@ export function MainMenu() {
 
   return (
     <MenuBackdrop>
-      <div className="flex h-full flex-col justify-center px-8 sm:px-16 lg:px-24">
-        <p className="font-display text-[11px] tracking-[0.45em] text-amber-200/70 uppercase">
+      <div className="flex h-full flex-col justify-center px-5 py-5 sm:px-16 sm:py-10 lg:px-24">
+        <p className="font-display text-[10px] tracking-[0.4em] text-amber-200/70 uppercase sm:text-[11px] sm:tracking-[0.45em]">
           A kinematic palace
         </p>
-        <h1 className="font-display mt-2 text-5xl font-semibold tracking-[0.18em] text-amber-50 sm:text-7xl">
+        <h1 className="font-display mt-1 text-[2.35rem] leading-none font-semibold tracking-[0.14em] text-amber-50 sm:mt-2 sm:text-7xl sm:tracking-[0.18em] [@media(max-height:520px)]:text-[2rem]">
           HOURGLASS
         </h1>
-        <div className="mt-4 h-px w-48 bg-gradient-to-r from-amber-200/80 to-transparent" />
+        <div className="mt-3 h-px w-32 bg-gradient-to-r from-amber-200/80 to-transparent sm:mt-4 sm:w-48" />
 
-        <nav className="mt-12 flex max-w-md flex-col gap-1" aria-label="Main menu">
+        <nav
+          className="mt-6 grid max-w-xl grid-cols-2 gap-x-4 gap-y-0.5 sm:mt-12 sm:max-w-md sm:grid-cols-1 sm:gap-1 [@media(max-height:520px)]:mt-5 [@media(max-height:520px)]:grid-cols-2"
+          aria-label="Main menu"
+        >
           {ITEMS.map((item, index) => {
             const active = index === selected;
             return (
@@ -73,7 +106,7 @@ export function MainMenu() {
                 type="button"
                 onMouseEnter={() => setSelected(index)}
                 onClick={() => activate(index)}
-                className={`flex items-center gap-3 py-2.5 text-left transition ${
+                className={`flex min-h-11 items-center gap-2 py-1.5 text-left transition sm:min-h-0 sm:gap-3 sm:py-2.5 ${
                   active
                     ? "text-amber-50"
                     : "text-amber-100/65 hover:text-amber-50"
@@ -81,13 +114,13 @@ export function MainMenu() {
               >
                 <span
                   aria-hidden
-                  className={`font-display w-5 text-lg text-amber-400 transition ${
+                  className={`font-display w-4 shrink-0 text-base text-amber-400 transition sm:w-5 sm:text-lg ${
                     active ? "opacity-100" : "opacity-0"
                   }`}
                 >
                   ▸
                 </span>
-                <span className="font-display text-xl tracking-wide sm:text-2xl">
+                <span className="font-display text-[0.95rem] leading-snug tracking-wide sm:text-2xl">
                   {item.label}
                 </span>
               </button>
@@ -95,7 +128,7 @@ export function MainMenu() {
           })}
         </nav>
 
-        <p className="font-mono mt-16 text-[11px] tracking-wide text-amber-100/45">
+        <p className="font-mono mt-8 hidden text-[11px] tracking-wide text-amber-100/45 sm:mt-16 sm:block [@media(max-height:520px)]:hidden">
           Arrows / WASD select · Enter confirm · M {muted ? "unmute" : "mute"}
         </p>
       </div>
