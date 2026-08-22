@@ -41,7 +41,8 @@ export function ControlsHint() {
   const playtest = useGameStore((s) => s.playtestFromBuilder);
   return (
     <div className="pointer-events-none absolute bottom-3 left-1/2 w-[min(720px,92vw)] -translate-x-1/2 text-center font-mono text-[10px] leading-4 text-amber-100/70">
-      Arrows / WASD move · Shift run · Space / Z jump · Down crouch / air-tuck /
+      Arrows / WASD move · Shift run · Space / Z jump · X / F fire (Up aim ·
+      Up+Left/Right diagonal) · Down crouch / air-tuck /
       hang-drop · Up climb · Up+Jump grab ledge above · Edge + Down+Jump climb
       down · 1–5 / J K inventory · R reset · P pause · Esc{" "}
       {playtest ? "editor" : "menu"}

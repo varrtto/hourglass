@@ -61,6 +61,8 @@ export type Player = {
   climbFrom: { x: number; y: number } | null;
   climbTo: { x: number; y: number } | null;
   hp: number;
+  /** Air-duck distance boost already applied this jump. */
+  duckJumpBoosted: boolean;
 };
 
 export type Level = {
@@ -71,16 +73,46 @@ export type Level = {
   spawn: { x: number; y: number };
 };
 
+export type ProjectileKind = "bullet" | "slash";
+
+export type Projectile = {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  traveled: number;
+  maxRange: number;
+  kind: ProjectileKind;
+  /** Remaining lifetime for melee slashes (seconds). */
+  life?: number;
+  facing?: 1 | -1;
+};
+
 export type World = {
   level: Level;
   player: Player;
+  projectiles: Projectile[];
+  fireCooldown: number;
 };
 
 export const INVENTORY_SIZE = 5;
 
+export type InventoryItemKind = "weapon";
+
+export type WeaponAttack = "ranged" | "melee";
+
 export type InventoryItem = {
   id: string;
   name: string;
+  kind?: InventoryItemKind;
+  /** Melee swing or ranged shot. Defaults to ranged. */
+  attack?: WeaponAttack;
+  /** Max reach / travel distance in tiles (blocks). */
+  range?: number;
+  /** Seconds between attacks. */
+  cooldown?: number;
+  /** Bullet speed in tiles per second (ranged only). */
+  bulletSpeed?: number;
 };
 
 export type InventorySlot = InventoryItem | null;
@@ -94,6 +126,7 @@ export type InputFrame = {
   run: boolean;
   jumpPressed: boolean;
   resetPressed: boolean;
+  usePressed: boolean;
 };
 
 export type DebugSnapshot = {

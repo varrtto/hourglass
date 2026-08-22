@@ -10,6 +10,7 @@ export function createInputFrame(): InputFrame {
     run: false,
     jumpPressed: false,
     resetPressed: false,
+    usePressed: false,
   };
 }
 
@@ -19,8 +20,9 @@ const KEY_UP = new Set(["arrowup", "w"]);
 const KEY_DOWN = new Set(["arrowdown", "s"]);
 const KEY_JUMP = new Set([" ", "space", "spacebar", "z"]);
 const KEY_RUN = new Set(["shift"]);
+const KEY_USE = new Set(["x", "f"]);
 
-type HeldAction = "left" | "right" | "up" | "down" | "jump" | "run";
+type HeldAction = "left" | "right" | "up" | "down" | "jump" | "run" | "use";
 
 const EMPTY_HELD: Record<HeldAction, boolean> = {
   left: false,
@@ -29,6 +31,7 @@ const EMPTY_HELD: Record<HeldAction, boolean> = {
   down: false,
   jump: false,
   run: false,
+  use: false,
 };
 
 export class InputController {
@@ -37,8 +40,10 @@ export class InputController {
   private touch = { ...EMPTY_HELD };
   private jumpWasDown = false;
   private resetWasDown = false;
+  private useWasDown = false;
   private jumpEdge = false;
   private resetEdge = false;
+  private useEdge = false;
 
   setTouch(action: HeldAction, down: boolean) {
     this.touch[action] = down;
@@ -50,6 +55,10 @@ export class InputController {
 
   pressReset() {
     this.resetEdge = true;
+  }
+
+  pressUse() {
+    this.useEdge = true;
   }
 
   attach(target: Window | HTMLElement = window) {
@@ -70,7 +79,8 @@ export class InputController {
       KEY_RIGHT.has(key) ||
       KEY_UP.has(key) ||
       KEY_DOWN.has(key) ||
-      KEY_JUMP.has(key)
+      KEY_JUMP.has(key) ||
+      KEY_USE.has(key)
     ) {
       e.preventDefault();
     }
@@ -80,6 +90,7 @@ export class InputController {
     if (KEY_DOWN.has(key)) this.keys.down = isDown;
     if (KEY_RUN.has(key)) this.keys.run = isDown;
     if (KEY_JUMP.has(key)) this.keys.jump = isDown;
+    if (KEY_USE.has(key)) this.keys.use = isDown;
     if (isDown && (key === "r" || key === "enter")) this.resetEdge = true;
   }
 
@@ -90,6 +101,9 @@ export class InputController {
     this.jumpWasDown = jump;
     if (pad.reset && !this.resetWasDown) this.resetEdge = true;
     this.resetWasDown = pad.reset;
+    const use = this.keys.use || this.touch.use || pad.use;
+    if (use && !this.useWasDown) this.useEdge = true;
+    this.useWasDown = use;
 
     this.frame.left = this.keys.left || this.touch.left || pad.left;
     this.frame.right = this.keys.right || this.touch.right || pad.right;
@@ -99,8 +113,10 @@ export class InputController {
     this.frame.run = this.keys.run || this.touch.run || pad.run;
     this.frame.jumpPressed = this.jumpEdge;
     this.frame.resetPressed = this.resetEdge;
+    this.frame.usePressed = this.useEdge;
     this.jumpEdge = false;
     this.resetEdge = false;
+    this.useEdge = false;
   }
 
   private readPad() {
@@ -111,6 +127,7 @@ export class InputController {
       down: false,
       jump: false,
       run: false,
+      use: false,
       reset: false,
     };
     const pads = navigator.getGamepads?.() ?? [];
@@ -126,6 +143,7 @@ export class InputController {
       down: pad.buttons[13]?.pressed || ay > dead,
       jump: pad.buttons[0]?.pressed ?? false,
       run: !!(pad.buttons[1]?.pressed || pad.buttons[2]?.pressed),
+      use: pad.buttons[7]?.pressed ?? false,
       reset: pad.buttons[9]?.pressed ?? false,
     };
   }

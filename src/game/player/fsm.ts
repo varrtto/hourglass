@@ -1,4 +1,12 @@
-import type { DebugSnapshot, Kinematics, Level, Player, World } from "../types";
+import type {
+  DebugSnapshot,
+  InputFrame,
+  InventoryItem,
+  Kinematics,
+  Level,
+  Player,
+  World,
+} from "../types";
 import {
   aabbHitsSpikes,
   blocksAt,
@@ -7,7 +15,7 @@ import {
   isSpike,
   tileAt,
 } from "../world/tiles";
-import type { InputFrame } from "../types";
+import { stepProjectiles, tryFireWeapon } from "../combat/projectiles";
 
 export function createPlayer(level: Level, k: Kinematics): Player {
   return {
@@ -26,11 +34,17 @@ export function createPlayer(level: Level, k: Kinematics): Player {
     climbFrom: null,
     climbTo: null,
     hp: 3,
+    duckJumpBoosted: false,
   };
 }
 
 export function createWorld(level: Level, k: Kinematics): World {
-  return { level, player: createPlayer(level, k) };
+  return {
+    level,
+    player: createPlayer(level, k),
+    projectiles: [],
+    fireCooldown: 0,
+  };
 }
 
 function setState(p: Player, state: Player["state"]) {
@@ -429,6 +443,15 @@ function applyAirCrouch(
   else if (canStand(world, k)) p.height = k.standHeight;
 }
 
+/** Pressing duck mid-jump stretches horizontal travel by 20% (once per jump). */
+function tryDuckJumpBoost(p: Player, k: Kinematics, down: boolean) {
+  if (!down || p.duckJumpBoosted) return;
+  // Only when ducking from a standing air pose — not if already tucked.
+  if (p.height <= k.crouchHeight + 0.01) return;
+  p.vx *= 1.2;
+  p.duckJumpBoosted = true;
+}
+
 function startJump(
   p: Player,
   k: Kinematics,
@@ -446,6 +469,7 @@ function startJump(
     p.vx = dir === 0 ? 0 : facing * k.standJumpHSpeed;
   }
   p.fallOriginY = p.y;
+  p.duckJumpBoosted = false;
   setState(p, running ? "runJump" : "standJump");
 }
 
@@ -504,6 +528,8 @@ function land(
 
 export function respawn(world: World, k: Kinematics) {
   world.player = createPlayer(world.level, k);
+  world.projectiles = [];
+  world.fireCooldown = 0;
 }
 
 export function stepWorld(
@@ -511,6 +537,7 @@ export function stepWorld(
   input: InputFrame,
   k: Kinematics,
   dt: number,
+  selectedItem: InventoryItem | null = null,
 ) {
   const p = world.player;
   p.timer += dt;
@@ -520,6 +547,9 @@ export function stepWorld(
     respawn(world, k);
     return;
   }
+
+  tryFireWeapon(world, input, k, selectedItem);
+  stepProjectiles(world, dt);
 
   const dir = moveIntent(input);
   const onGround = grounded(world, k);
@@ -577,7 +607,12 @@ export function stepWorld(
         if (tryStartEdgeClimb(world, k, -1)) break;
       }
       if (input.jumpPressed) {
-        startJump(p, k, input.run || Math.abs(p.vx) > k.walkSpeed + 0.4, dir);
+        startJump(
+          p,
+          k,
+          input.run || Math.abs(p.vx) > k.walkSpeed + 0.4,
+          dir,
+        );
         if (input.down) p.height = k.crouchHeight;
         break;
       }
@@ -643,6 +678,7 @@ export function stepWorld(
     }
     case "standJump":
     case "runJump": {
+      tryDuckJumpBoost(p, k, input.down);
       applyAirCrouch(world, k, input.down);
       p.vy += k.jumpGravity * dt;
       if (p.state === "runJump") {

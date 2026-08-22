@@ -53,7 +53,9 @@ function Sim({
     const world = worldRef.current;
     accRef.current = consumeFixedSteps(accRef.current, delta, paused, () => {
       input.beginFrame();
-      stepWorld(world, input.frame, kinematics, FIXED_DT);
+      const { inventory, selectedSlot } = useGameStore.getState();
+      const selected = inventory[selectedSlot] ?? null;
+      stepWorld(world, input.frame, kinematics, FIXED_DT, selected);
     });
     const p = world.player;
     const sprinting =
@@ -78,6 +80,7 @@ function Sim({
       <LayerBackdrop width={level.width} height={level.height} />
       <LevelView level={level} />
       <LivePlayer worldRef={worldRef} k={kinematics} />
+      <LiveProjectiles worldRef={worldRef} />
     </>
   );
 }
@@ -112,6 +115,60 @@ function LivePlayer({
         <meshStandardMaterial color="#1a1210" />
       </mesh>
     </mesh>
+  );
+}
+
+const MAX_BULLET_MESHES = 16;
+
+function LiveProjectiles({
+  worldRef,
+}: {
+  worldRef: { current: World | null };
+}) {
+  const group = useRef<THREE.Group>(null);
+
+  useFrame(() => {
+    const bullets = worldRef.current?.projectiles ?? [];
+    const root = group.current;
+    if (!root) return;
+    for (let i = 0; i < MAX_BULLET_MESHES; i++) {
+      const child = root.children[i] as THREE.Mesh | undefined;
+      if (!child) continue;
+      const b = bullets[i];
+      if (!b) {
+        child.visible = false;
+        continue;
+      }
+      child.visible = true;
+      child.position.set(b.x, b.y, 0.35);
+      if (b.kind === "slash") {
+        const reach = b.maxRange;
+        child.scale.set(reach, 1.35, 1);
+        child.rotation.z = ((b.facing ?? 1) > 0 ? -1 : 1) * 0.35;
+        const mat = child.material as THREE.MeshStandardMaterial;
+        mat.color.set("#d8dde8");
+        mat.emissive.set("#8a9bb8");
+        mat.emissiveIntensity = 0.35;
+      } else {
+        child.scale.set(1, 1, 1);
+        child.rotation.z = Math.atan2(b.vy, b.vx);
+        const mat = child.material as THREE.MeshStandardMaterial;
+        mat.color.set("#f2e6a8");
+        mat.emissive.set("#c9a227");
+        mat.emissiveIntensity = 0.45;
+      }
+    }
+  });
+
+  return (
+    <group ref={group}>
+      {Array.from({ length: MAX_BULLET_MESHES }, (_, i) => (
+        <mesh key={i} visible={false}>
+          <boxGeometry args={[0.28, 0.12, 0.12]} />
+          <meshStandardMaterial color="#f2e6a8" emissive="#c9a227" emissiveIntensity={0.45} />
+        </mesh>
+      ))}
+    </group>
   );
 }
 

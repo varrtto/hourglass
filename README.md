@@ -37,13 +37,14 @@ Arrows / WASD select · Enter confirm. **Esc** from play, gym, builder, scoreboa
 | Move | Arrows / WASD | D-pad / left stick |
 | Run | Shift | B / X |
 | Jump | Space / Z | A |
+| Fire (selected weapon) | X / F (Up / Up+Left/Right aim) | RT |
 | Inventory | 1–5 / J K | — |
 | Crouch / drop from hang | Down | Down |
 | Climb from hang | Up or Jump | Up / A |
 | Reset | R / Enter | Start |
 | Pause | P | — |
 
-Walk vs run: without Shift you walk (short jump). Hold Shift to run and clear 3-tile gaps. Reverse while running and you **skid** about a tile before turning; walking reverse is an in-place pivot. Hold **Down in the air** to tuck (crouch hitbox); land still holding Down to stay crouched.
+Walk vs run: without Shift you walk (short jump). Hold Shift to run and clear 3-tile gaps. Reverse while running and you **skid** about a tile before turning; walking reverse is an in-place pivot. Hold **Down in the air** to tuck (crouch hitbox); land still holding Down to stay crouched. Press **Down while jumping** for **+20%** horizontal distance.
 
 Fall rules (tunable in Leva, Practice Gym): **1 story** is safe, **2 stories** stun + lose HP, **3 stories** (or spikes) kill. Jump / R to respawn.
 

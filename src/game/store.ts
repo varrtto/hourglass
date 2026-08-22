@@ -1,6 +1,14 @@
 import { create } from "zustand";
 import { INVENTORY_SIZE, type DebugSnapshot, type InventorySlot, type Kinematics, type Level } from "./types";
+import { HAND_GUN, SWORD } from "./items";
 import { defaultKinematics } from "./player/kinematics";
+
+function createStartingInventory(): InventorySlot[] {
+  const slots: InventorySlot[] = Array.from({ length: INVENTORY_SIZE }, () => null);
+  slots[0] = { ...HAND_GUN };
+  slots[1] = { ...SWORD };
+  return slots;
+}
 
 const emptyDebug: DebugSnapshot = {
   state: "idle",
@@ -76,7 +84,7 @@ export const useGameStore = create<GameStore>((set) => ({
   kinematics: { ...defaultKinematics },
   debug: emptyDebug,
   scores: [],
-  inventory: Array.from({ length: INVENTORY_SIZE }, () => null),
+  inventory: createStartingInventory(),
   selectedSlot: 0,
   draftLevel: null,
   playtestFromBuilder: false,

@@ -85,7 +85,7 @@ export function InventoryHud({
       </div>
       {interactive ? null : (
         <p className="font-mono mt-1 text-center text-[9px] tracking-wide text-amber-100/40">
-          1–{INVENTORY_SIZE} select · J / K
+          1–{INVENTORY_SIZE} select · J / K · X fire
         </p>
       )}
     </div>

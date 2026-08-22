@@ -11,7 +11,7 @@ import type { InputController } from "./input";
 import { useGameStore } from "./store";
 
 type Dir = "left" | "right" | "up" | "down";
-type Control = "dpad" | "jump" | "run" | "pause" | "reset" | "menu";
+type Control = "dpad" | "jump" | "run" | "fire" | "pause" | "reset" | "menu";
 
 const EMPTY_DIRS = {
   left: false,
@@ -38,6 +38,7 @@ export function TouchControls({
   const [dirs, setDirs] = useState(EMPTY_DIRS);
   const [jumpHeld, setJumpHeld] = useState(false);
   const [runHeld, setRunHeld] = useState(false);
+  const [fireHeld, setFireHeld] = useState(false);
 
   useEffect(() => {
     rotatedRef.current = rotated;
@@ -95,16 +96,20 @@ export function TouchControls({
   const syncHolds = useCallback(() => {
     let jump = false;
     let run = false;
+    let fire = false;
     let dpad = false;
     for (const kind of bindsRef.current.values()) {
       if (kind === "jump") jump = true;
       if (kind === "run") run = true;
+      if (kind === "fire") fire = true;
       if (kind === "dpad") dpad = true;
     }
     input.setTouch("jump", jump);
     input.setTouch("run", run);
+    input.setTouch("use", fire);
     setJumpHeld(jump);
     setRunHeld(run);
+    setFireHeld(fire);
     if (!dpad) clearDpad();
   }, [clearDpad, input]);
 
@@ -147,6 +152,9 @@ export function TouchControls({
       } else if (kind === "run") {
         input.setTouch("run", true);
         setRunHeld(true);
+      } else if (kind === "fire") {
+        input.setTouch("use", true);
+        setFireHeld(true);
       } else {
         pressMeta(kind);
       }
@@ -294,6 +302,12 @@ export function TouchControls({
           marginRight: "env(safe-area-inset-right)",
         }}
       >
+        <ActionButton
+          touch="fire"
+          label="Fire"
+          lit={fireHeld}
+          className="size-14"
+        />
         <ActionButton touch="run" label="Run" lit={runHeld} className="size-16" />
         <ActionButton
           touch="jump"
