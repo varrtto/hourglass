@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
 import { useMobile } from "@/hooks/useMobile";
+import { useEffect, useSyncExternalStore } from "react";
 
 function subscribeMotion(onStoreChange: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -64,7 +64,7 @@ export function ScrollingText({
           style={{
             /* Sit at the bottom of the opaque mask band so the first lines
                are visible immediately; the lower 20% stay empty (margin). */
-            top: "80%",
+            top: "90%",
             animation: `hourglass-crawl ${durationSec}s linear forwards`,
           }}
         >
