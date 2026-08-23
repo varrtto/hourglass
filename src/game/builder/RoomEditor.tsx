@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import { useMobile } from "@/hooks/useMobile";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { enterPlayViewport } from "../playViewport";
 import { fetchRoomMap } from "../queries";
 import { useGameStore } from "../store";
 import type { Level, TileId } from "../types";
+import { TILE_EMPTY, TILE_LEDGE, TILE_SOLID, TILE_SPIKE } from "../types";
 import { tiledToLevel } from "../world/loadLevel";
 import { Palette } from "./Palette";
 import {
@@ -17,8 +18,12 @@ import {
   saveLevelDownload,
 } from "./serialize";
 import { TileCanvas } from "./TileCanvas";
+import { useEditorSessionStore } from "../editor/editorSessionStore";
 
 const UNDO_CAP = 50;
+const EXIT_WIDTH = 2;
+const EXIT_HEIGHT = 2;
+
 const TOOL_KEYS: Record<string, BuilderTool> = {
   "1": "empty",
   "2": "solid",
@@ -54,17 +59,141 @@ function applySnap(id: string, snap: Snapshot): Level {
   };
 }
 
+function findBatAt(level: Level, tx: number, ty: number): number {
+  return (level.bats ?? []).findIndex(
+    (b) => Math.floor(b.x) === tx && Math.floor(b.y) === ty,
+  );
+}
+
+function findExitAt(level: Level, tx: number, ty: number): number {
+  return (level.exits ?? []).findIndex(
+    (e) =>
+      tx >= e.x &&
+      tx < e.x + e.width &&
+      ty >= e.y &&
+      ty < e.y + e.height,
+  );
+}
+
+function spawnTile(level: Level): { x: number; y: number } {
+  return { x: Math.floor(level.spawn.x), y: Math.floor(level.spawn.y) };
+}
+
+function tileAt(level: Level, tx: number, ty: number): TileId {
+  if (tx < 0 || ty < 0 || tx >= level.width || ty >= level.height) {
+    return TILE_SOLID;
+  }
+  return level.tiles[ty * level.width + tx] as TileId;
+}
+
+/** Non-air tiles that block entities / doors. */
+function isBlockedTile(tile: TileId): boolean {
+  return tile === TILE_SOLID || tile === TILE_SPIKE || tile === TILE_LEDGE;
+}
+
+function exitOverlapsRect(
+  level: Level,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  ignoreIndex = -1,
+): boolean {
+  return (level.exits ?? []).some((e, i) => {
+    if (i === ignoreIndex) return false;
+    return x < e.x + e.width && x + w > e.x && y < e.y + e.height && y + h > e.y;
+  });
+}
+
+function batInRect(level: Level, x: number, y: number, w: number, h: number): boolean {
+  return (level.bats ?? []).some((b) => {
+    const bx = Math.floor(b.x);
+    const by = Math.floor(b.y);
+    return bx >= x && bx < x + w && by >= y && by < y + h;
+  });
+}
+
+function spawnInRect(level: Level, x: number, y: number, w: number, h: number): boolean {
+  const s = spawnTile(level);
+  return s.x >= x && s.x < x + w && s.y >= y && s.y < y + h;
+}
+
+function tilesClearInRect(
+  level: Level,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): boolean {
+  for (let ty = y; ty < y + h; ty++) {
+    for (let tx = x; tx < x + w; tx++) {
+      if (isBlockedTile(tileAt(level, tx, ty))) return false;
+    }
+  }
+  return true;
+}
+
+function cellHasEntity(level: Level, tx: number, ty: number): string | null {
+  if (findBatAt(level, tx, ty) >= 0) return "bat";
+  if (findExitAt(level, tx, ty) >= 0) return "exit";
+  const s = spawnTile(level);
+  if (s.x === tx && s.y === ty) return "spawn";
+  return null;
+}
+
+function reasonCannotPlaceBat(level: Level, tx: number, ty: number): string | null {
+  if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place bat on a tile";
+  if (findExitAt(level, tx, ty) >= 0) return "Can't place bat on an exit";
+  const s = spawnTile(level);
+  if (s.x === tx && s.y === ty) return "Can't place bat on spawn";
+  return null;
+}
+
+function reasonCannotPlaceExit(
+  level: Level,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): string | null {
+  if (x < 0 || y < 0 || x + w > level.width || y + h > level.height) {
+    return "Exit doesn't fit on the map";
+  }
+  if (!tilesClearInRect(level, x, y, w, h)) {
+    return "Can't place exit over tiles";
+  }
+  if (batInRect(level, x, y, w, h)) return "Can't place exit over a bat";
+  if (spawnInRect(level, x, y, w, h)) return "Can't place exit over spawn";
+  if (exitOverlapsRect(level, x, y, w, h)) return "Can't overlap another exit";
+  return null;
+}
+
+function reasonCannotPlaceSpawn(level: Level, tx: number, ty: number): string | null {
+  if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place spawn on a tile";
+  if (findBatAt(level, tx, ty) >= 0) return "Can't place spawn on a bat";
+  if (findExitAt(level, tx, ty) >= 0) return "Can't place spawn on an exit";
+  return null;
+}
+
+function reasonCannotPaintTile(level: Level, tx: number, ty: number): string | null {
+  const entity = cellHasEntity(level, tx, ty);
+  if (entity) return `Can't paint over ${entity}`;
+  return null;
+}
+
 export function RoomEditor() {
   const startPlaytest = useGameStore((s) => s.startPlaytest);
-  const setDraftLevel = useGameStore((s) => s.setDraftLevel);
   const builderReturnScreen = useGameStore((s) => s.builderReturnScreen);
   const storyHeight = useGameStore((s) => s.kinematics.storyHeight);
   const mobile = useMobile();
   const [exitIdField, setExitIdField] = useState("finish");
   const [doc, setDoc] = useState<Level>(() => {
+    const sessionRoom = useEditorSessionStore.getState().roomDraft;
+    if (sessionRoom) return cloneLevel(sessionRoom);
     const draft = useGameStore.getState().draftLevel;
     return draft ? cloneLevel(draft) : createBlankLevel();
   });
+  const levelTitle = useEditorSessionStore((s) => s.levelDraft?.title ?? null);
   const [tool, setTool] = useState<BuilderTool>("solid");
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   const [widthField, setWidthField] = useState(String(doc.width));
@@ -77,10 +206,23 @@ export function RoomEditor() {
   const strokeRef = useRef(false);
 
   useEffect(() => {
+    docRef.current = doc;
+    useEditorSessionStore.getState().setRoomDraft(doc, true);
     return () => {
       const room = cloneLevel(docRef.current);
       const state = useGameStore.getState();
       state.setDraftLevel(room);
+      useEditorSessionStore.getState().setRoomDraft(room, true);
+      const session = useEditorSessionStore.getState();
+      if (session.levelDraft && room.id) {
+        session.setLevelDraft(
+          {
+            ...session.levelDraft,
+            rooms: { ...(session.levelDraft.rooms ?? {}), [room.id]: room },
+          },
+          true,
+        );
+      }
       const manifest = state.draftManifest;
       if (manifest && room.id) {
         state.setDraftManifest({
@@ -89,6 +231,24 @@ export function RoomEditor() {
         });
       }
     };
+  }, [doc]);
+
+  const leaveToLevelEditor = useCallback(() => {
+    const room = cloneLevel(docRef.current);
+    useEditorSessionStore.getState().setRoomDraft(room, false);
+    const flushed = useEditorSessionStore.getState().returnFromRoom();
+    const state = useGameStore.getState();
+    state.setDraftLevel(room);
+    if (flushed) state.setDraftManifest(flushed);
+    state.setPlaytestFromBuilder(false);
+    state.setScreen(state.builderReturnScreen ?? "levelEditor");
+    state.setBuilderReturnScreen(null);
+  }, []);
+
+  const saveRoom = useCallback(() => {
+    useEditorSessionStore.getState().setRoomDraft(docRef.current, false);
+    useEditorSessionStore.getState().saveRoom();
+    setStatus("Room saved into level draft");
   }, []);
 
   const pushUndo = useCallback((from: Level) => {
@@ -110,9 +270,106 @@ export function RoomEditor() {
     pushUndo(docRef.current);
   }, [pushUndo]);
 
+  const placeBat = useCallback(
+    (tx: number, ty: number) => {
+      const cur = docRef.current;
+      const existing = findBatAt(cur, tx, ty);
+      if (existing >= 0) {
+        pushUndo(cur);
+        commit({
+          ...cur,
+          bats: (cur.bats ?? []).filter((_, i) => i !== existing),
+        });
+        return;
+      }
+      const blocked = reasonCannotPlaceBat(cur, tx, ty);
+      if (blocked) {
+        setStatus(blocked);
+        return;
+      }
+      pushUndo(cur);
+      commit({
+        ...cur,
+        bats: [...(cur.bats ?? []), { x: tx + 0.5, y: ty + 0.5 }],
+      });
+    },
+    [commit, pushUndo],
+  );
+
+  const placeExit = useCallback(
+    (tx: number, ty: number) => {
+      const cur = docRef.current;
+      const exitId = exitIdField.trim() || "exit";
+      const existing = findExitAt(cur, tx, ty);
+      if (existing >= 0) {
+        pushUndo(cur);
+        commit({
+          ...cur,
+          exits: (cur.exits ?? []).filter((_, i) => i !== existing),
+        });
+        return;
+      }
+      const width = EXIT_WIDTH;
+      const height = EXIT_HEIGHT;
+      const x = Math.max(0, Math.min(tx, cur.width - width));
+      const y = Math.max(0, Math.min(ty, cur.height - height));
+      const blocked = reasonCannotPlaceExit(cur, x, y, width, height);
+      if (blocked) {
+        setStatus(blocked);
+        return;
+      }
+      pushUndo(cur);
+      commit({
+        ...cur,
+        exits: [...(cur.exits ?? []), { id: exitId, x, y, width, height }],
+      });
+    },
+    [commit, exitIdField, pushUndo],
+  );
+
+  const eraseAt = useCallback(
+    (tx: number, ty: number) => {
+      const cur = docRef.current;
+      const batIdx = findBatAt(cur, tx, ty);
+      const exitIdx = findExitAt(cur, tx, ty);
+      if (batIdx < 0 && exitIdx < 0) return false;
+      pushUndo(cur);
+      let bats = cur.bats ?? [];
+      let exits = cur.exits ?? [];
+      if (batIdx >= 0) bats = bats.filter((_, i) => i !== batIdx);
+      if (exitIdx >= 0) exits = exits.filter((_, i) => i !== exitIdx);
+      commit({ ...cur, bats, exits });
+      return true;
+    },
+    [commit, pushUndo],
+  );
+
   const paint = useCallback(
     (tx: number, ty: number, tile: TileId) => {
       const cur = docRef.current;
+      // Empty brush also clears bats / exits on that tile.
+      if (tile === TILE_EMPTY) {
+        const batIdx = findBatAt(cur, tx, ty);
+        const exitIdx = findExitAt(cur, tx, ty);
+        if (batIdx >= 0 || exitIdx >= 0) {
+          beginStroke();
+          let bats = cur.bats ?? [];
+          let exits = cur.exits ?? [];
+          if (batIdx >= 0) bats = bats.filter((_, i) => i !== batIdx);
+          if (exitIdx >= 0) exits = exits.filter((_, i) => i !== exitIdx);
+          const i = ty * cur.width + tx;
+          const tiles = [...cur.tiles];
+          tiles[i] = tile;
+          commit({ ...cur, tiles, bats, exits });
+          return;
+        }
+      } else {
+        const blocked = reasonCannotPaintTile(cur, tx, ty);
+        if (blocked) {
+          setStatus(blocked);
+          return;
+        }
+      }
       const i = ty * cur.width + tx;
       if (cur.tiles[i] === tile) return;
       beginStroke();
@@ -128,27 +385,13 @@ export function RoomEditor() {
       const cur = docRef.current;
       const next = { x: tx + 0.5, y: ty };
       if (cur.spawn.x === next.x && cur.spawn.y === next.y) return;
-      pushUndo(cur);
-      commit({ ...cur, spawn: next });
-    },
-    [commit, pushUndo],
-  );
-
-  const placeBat = useCallback(
-    (tx: number, ty: number) => {
-      const cur = docRef.current;
-      const x = tx + 0.5;
-      const y = ty + 0.5;
-      const existing = (cur.bats ?? []).findIndex(
-        (b) => Math.floor(b.x) === tx && Math.floor(b.y) === ty,
-      );
-      pushUndo(cur);
-      if (existing >= 0) {
-        const bats = (cur.bats ?? []).filter((_, i) => i !== existing);
-        commit({ ...cur, bats });
+      const blocked = reasonCannotPlaceSpawn(cur, tx, ty);
+      if (blocked) {
+        setStatus(blocked);
         return;
       }
-      commit({ ...cur, bats: [...(cur.bats ?? []), { x, y }] });
+      pushUndo(cur);
+      commit({ ...cur, spawn: next });
     },
     [commit, pushUndo],
   );
@@ -212,34 +455,6 @@ export function RoomEditor() {
     commit(next);
     setStatus(`Resized to ${next.width}×${next.height}`);
   }, [commit, heightField, pushUndo, widthField]);
-
-  const placeExit = useCallback(
-    (tx: number, ty: number) => {
-      const cur = docRef.current;
-      const exitId = exitIdField.trim() || "exit";
-      const existing = (cur.exits ?? []).findIndex(
-        (e) =>
-          tx >= e.x &&
-          tx < e.x + e.width &&
-          ty >= e.y &&
-          ty < e.y + e.height,
-      );
-      pushUndo(cur);
-      if (existing >= 0) {
-        const exits = (cur.exits ?? []).filter((_, i) => i !== existing);
-        commit({ ...cur, exits });
-        return;
-      }
-      commit({
-        ...cur,
-        exits: [
-          ...(cur.exits ?? []),
-          { id: exitId, x: tx, y: ty, width: 1, height: 1 },
-        ],
-      });
-    },
-    [commit, exitIdField, pushUndo],
-  );
 
   const playtest = useCallback(() => {
     void enterPlayViewport();
@@ -308,6 +523,9 @@ export function RoomEditor() {
         <ToolBtn onClick={() => void loadLevel1()}>Load level 1</ToolBtn>
         <ToolBtn onClick={() => fileRef.current?.click()}>Import</ToolBtn>
         <ToolBtn onClick={() => saveLevelDownload(doc)}>Download</ToolBtn>
+        <ToolBtn onClick={saveRoom} accent>
+          Save room
+        </ToolBtn>
         <ToolBtn onClick={playtest} accent>
           Playtest
         </ToolBtn>
@@ -343,24 +561,10 @@ export function RoomEditor() {
         </div>
         <button
           type="button"
-          onClick={() => {
-            const room = cloneLevel(doc);
-            const state = useGameStore.getState();
-            state.setDraftLevel(room);
-            const manifest = state.draftManifest;
-            if (manifest && room.id) {
-              state.setDraftManifest({
-                ...manifest,
-                rooms: { ...(manifest.rooms ?? {}), [room.id]: room },
-              });
-            }
-            state.setPlaytestFromBuilder(false);
-            state.setScreen(state.builderReturnScreen ?? "menu");
-            state.setBuilderReturnScreen(null);
-          }}
+          onClick={leaveToLevelEditor}
           className="font-display ml-auto text-sm tracking-wide text-amber-200/75 transition hover:text-amber-50"
         >
-          ▸ {builderReturnScreen === "levelEditor" ? "Adventure" : "Menu"}
+          ▸ {builderReturnScreen === "levelEditor" ? "Level" : "Menu"}
         </button>
         <input
           ref={fileRef}
@@ -385,11 +589,15 @@ export function RoomEditor() {
           onPlaceSpawn={placeSpawn}
           onPlaceBat={placeBat}
           onPlaceExit={placeExit}
+          onErase={eraseAt}
           onHover={setHover}
         />
       </div>
 
       <footer className="flex flex-wrap items-center gap-4 border-t border-amber-200/15 px-4 py-1.5 font-mono text-[11px] text-amber-100/50">
+        {levelTitle ? (
+          <span className="text-amber-200/60">Level: {levelTitle}</span>
+        ) : null}
         <span>
           {hover
             ? `${hover.x}, ${hover.y}${hoverTile != null ? `  tile ${hoverTile}` : ""}`
@@ -401,8 +609,8 @@ export function RoomEditor() {
         {status ? <span className="text-amber-200/70">{status}</span> : null}
         <span className="ml-auto">
           {mobile
-            ? "Tap tools · drag paint · pinch zoom · Menu to leave"
-            : "1–7 tools · drag paint · space/middle pan · wheel zoom · ⌘Z undo · Esc back"}
+            ? "Tap tools · drag paint · empty/bat/exit tap again to remove · Menu to leave"
+            : "1–7 tools · click bat/exit again to remove · empty or right-click erases · ⌘Z undo"}
         </span>
       </footer>
     </div>

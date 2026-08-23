@@ -19,6 +19,7 @@ export function TileCanvas({
   onPlaceSpawn,
   onPlaceBat,
   onPlaceExit,
+  onErase,
   onHover,
 }: {
   level: Level;
@@ -28,6 +29,7 @@ export function TileCanvas({
   onPlaceSpawn: (tx: number, ty: number) => void;
   onPlaceBat: (tx: number, ty: number) => void;
   onPlaceExit: (tx: number, ty: number) => void;
+  onErase: (tx: number, ty: number) => boolean;
   onHover: (hover: Hover) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -40,6 +42,7 @@ export function TileCanvas({
   const spaceHeld = useRef(false);
   const panning = useRef(false);
   const painting = useRef(false);
+  const entityStroke = useRef(false);
   const panOrigin = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const fitted = useRef(false);
 
@@ -286,8 +289,12 @@ export function TileCanvas({
     if (current === "spawn") {
       onPlaceSpawn(t.x, t.y);
     } else if (current === "bat") {
+      if (entityStroke.current) return;
+      entityStroke.current = true;
       onPlaceBat(t.x, t.y);
     } else if (current === "exit") {
+      if (entityStroke.current) return;
+      entityStroke.current = true;
       onPlaceExit(t.x, t.y);
     } else {
       onPaint(t.x, t.y, TOOL_TILE[current]);
@@ -302,7 +309,7 @@ export function TileCanvas({
     const my = e.clientY - rect.top;
     canvas.setPointerCapture(e.pointerId);
 
-    if (e.button === 1 || spaceHeld.current || e.button === 2) {
+    if (e.button === 1 || spaceHeld.current) {
       panning.current = true;
       panOrigin.current = {
         x: e.clientX,
@@ -313,8 +320,18 @@ export function TileCanvas({
       e.preventDefault();
       return;
     }
+
+    // Right-click erases bats / exits under the cursor.
+    if (e.button === 2) {
+      const t = screenToTile(mx, my);
+      if (t) onErase(t.x, t.y);
+      e.preventDefault();
+      return;
+    }
+
     if (e.button !== 0) return;
     painting.current = true;
+    entityStroke.current = false;
     applyAt(mx, my);
   };
 
@@ -341,7 +358,13 @@ export function TileCanvas({
       onHover(hover);
       draw();
     }
-    if (painting.current && toolRef.current !== "spawn" && toolRef.current !== "bat") {
+    const current = toolRef.current;
+    if (
+      painting.current &&
+      current !== "spawn" &&
+      current !== "bat" &&
+      current !== "exit"
+    ) {
       applyAt(mx, my);
     }
   };
@@ -349,6 +372,7 @@ export function TileCanvas({
   const endGesture = (e: React.PointerEvent<HTMLCanvasElement>) => {
     painting.current = false;
     panning.current = false;
+    entityStroke.current = false;
     try {
       canvasRef.current?.releasePointerCapture(e.pointerId);
     } catch {

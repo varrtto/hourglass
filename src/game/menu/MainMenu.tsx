@@ -5,10 +5,13 @@ import { useMobile } from "@/hooks/useMobile";
 import { enterPlayViewport } from "../playViewport";
 import { type AppScreen, useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
+import { BUILTIN_LEVEL_ID, DEFAULT_CAMPAIGN_ID } from "../db/types";
+import { getCampaign } from "../db/campaignsRepo";
+import { getDb } from "../db/sqlite";
 
 const ITEMS: { screen: AppScreen; label: string; action?: "newGame" }[] = [
   { screen: "play", label: "Start new game", action: "newGame" },
-  { screen: "levelEditor", label: "Create your adventure" },
+  { screen: "campaigns", label: "Custom campaigns" },
   { screen: "scoreboard", label: "Scoreboard" },
   { screen: "config", label: "Config" },
   { screen: "credits", label: "Credits" },
@@ -26,8 +29,16 @@ export function MainMenu() {
       const item = ITEMS[index];
       if (!item) return;
       if (item.action === "newGame") {
-        useGameStore.getState().startNewGame("level-1");
-        void enterPlayViewport();
+        void (async () => {
+          await getDb();
+          const campaign = await getCampaign(DEFAULT_CAMPAIGN_ID);
+          const levelIds =
+            campaign?.levelIds?.length ? campaign.levelIds : [BUILTIN_LEVEL_ID];
+          useGameStore
+            .getState()
+            .startCampaign(DEFAULT_CAMPAIGN_ID, levelIds, 0);
+          void enterPlayViewport();
+        })();
         return;
       }
       setScreen(item.screen);

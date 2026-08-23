@@ -36,6 +36,8 @@ export type AppScreen =
   | "roomPlaytest"
   | "builder"
   | "levelEditor"
+  | "campaigns"
+  | "campaignEditor"
   | "scoreboard"
   | "config"
   | "credits"
@@ -69,6 +71,10 @@ type GameStore = {
   playMode: PlayMode;
   beatMusicId: string | null;
   builderReturnScreen: AppScreen | null;
+  /** Active campaign playlist while playing (null = single-level / playtest). */
+  campaignId: string | null;
+  campaignLevelIds: string[];
+  campaignLevelIndex: number;
   setScreen: (screen: AppScreen) => void;
   setPaused: (paused: boolean) => void;
   setMuted: (muted: boolean) => void;
@@ -86,6 +92,8 @@ type GameStore = {
   startPlaytest: (level: Level) => void;
   startLevelPlaytest: (manifest: LevelManifest, beatId?: string) => void;
   startNewGame: (levelId: string) => void;
+  startCampaign: (campaignId: string, levelIds: string[], startIndex?: number) => void;
+  advanceCampaignOrFinish: () => "next" | "done" | "none";
   setSelectedSlot: (index: number) => void;
   moveSelectedSlot: (delta: number) => void;
 };
@@ -111,6 +119,9 @@ export const useGameStore = create<GameStore>((set) => ({
   playMode: "room",
   beatMusicId: null,
   builderReturnScreen: null,
+  campaignId: null,
+  campaignLevelIds: [],
+  campaignLevelIndex: 0,
   setScreen: (screen) =>
     set({
       screen,
@@ -174,10 +185,54 @@ export const useGameStore = create<GameStore>((set) => ({
       playtestFromLevelEditor: false,
       playtestBeatId: null,
       draftManifest: null,
+      campaignId: null,
+      campaignLevelIds: [],
+      campaignLevelIndex: 0,
       screen: "play",
       paused: false,
       playMode: "scroll",
     }),
+  startCampaign: (campaignId, levelIds, startIndex = 0) => {
+    const index = Math.max(0, Math.min(startIndex, levelIds.length - 1));
+    const levelId = levelIds[index];
+    if (!levelId) return;
+    set({
+      campaignId,
+      campaignLevelIds: [...levelIds],
+      campaignLevelIndex: index,
+      levelId,
+      playtestFromBuilder: false,
+      playtestFromLevelEditor: false,
+      playtestBeatId: null,
+      draftManifest: null,
+      screen: "play",
+      paused: false,
+      playMode: "scroll",
+    });
+  },
+  advanceCampaignOrFinish: () => {
+    const state = useGameStore.getState();
+    if (!state.campaignId || state.campaignLevelIds.length === 0) return "none";
+    const nextIndex = state.campaignLevelIndex + 1;
+    if (nextIndex >= state.campaignLevelIds.length) {
+      set({
+        campaignId: null,
+        campaignLevelIds: [],
+        campaignLevelIndex: 0,
+      });
+      return "done";
+    }
+    const levelId = state.campaignLevelIds[nextIndex]!;
+    set({
+      campaignLevelIndex: nextIndex,
+      levelId,
+      draftManifest: null,
+      playtestBeatId: null,
+      playMode: "scroll",
+      playtestRevision: state.playtestRevision + 1,
+    });
+    return "next";
+  },
   setSelectedSlot: (index) =>
     set({
       selectedSlot: Math.min(INVENTORY_SIZE - 1, Math.max(0, Math.floor(index))),

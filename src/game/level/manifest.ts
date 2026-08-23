@@ -29,6 +29,8 @@ export function cloneManifest(m: LevelManifest): LevelManifest {
           Object.entries(m.rooms).map(([k, r]) => [k, cloneLevel(r)]),
         )
       : undefined,
+    timeLimitSec: m.timeLimitSec,
+    onTimeout: m.onTimeout,
   };
 }
 
@@ -50,6 +52,7 @@ export function createBlankManifest(id = "draft"): LevelManifest {
   const intro: ScrollBeat = {
     kind: "scroll",
     id: "intro",
+    name: "Intro",
     text: ["The sands shift beneath the palace…", "A prince awakens."],
     next: "room-1",
     durationSec: 28,
@@ -57,12 +60,14 @@ export function createBlankManifest(id = "draft"): LevelManifest {
   const roomBeat: RoomBeat = {
     kind: "room",
     id: "room-1",
+    name: "First room",
     roomId: "room-1",
     onExit: { finish: "outro" },
   };
   const outro: ScrollBeat = {
     kind: "scroll",
     id: "outro",
+    name: "Outro",
     text: ["The hourglass turns.", "To be continued."],
     next: "",
     durationSec: 20,

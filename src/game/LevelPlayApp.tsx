@@ -10,16 +10,15 @@ import { musicForBeat } from "./level/types";
 import { InputController } from "./input";
 import { enterPlayViewport, usePortrait } from "./playViewport";
 import {
-  fetchLevelManifest,
-  fetchRoomMap,
   fetchSpriteManifest,
   queryKeys,
 } from "./queries";
+import { resolveLevelManifest, resolveRoom } from "./db/resolveLevel";
 import { useGameStore } from "./store";
-import { tiledToLevel } from "./world/loadLevel";
 import { GameCanvas } from "./render/GameCanvas";
 import { ControlsHint } from "./render/DebugHud";
 import { InventoryHud } from "./render/InventoryHud";
+import { TimeLimitHud } from "./render/TimeLimitHud";
 import { TouchControls } from "./TouchControls";
 import { MenuBackdrop } from "./menu/MenuBackdrop";
 import { ScrollingText } from "./menu/ScrollingText";
@@ -33,6 +32,7 @@ export function LevelPlayApp() {
   const setScreen = useGameStore((s) => s.setScreen);
   const setPlayMode = useGameStore((s) => s.setPlayMode);
   const setBeatMusicId = useGameStore((s) => s.setBeatMusicId);
+  const advanceCampaignOrFinish = useGameStore((s) => s.advanceCampaignOrFinish);
   const setPlaytestFromLevelEditor = useGameStore(
     (s) => s.setPlaytestFromLevelEditor,
   );
@@ -48,8 +48,8 @@ export function LevelPlayApp() {
   const useDraft = playtestFromLevelEditor && draftManifest != null;
 
   const manifestQuery = useQuery({
-    queryKey: queryKeys.levelManifest(levelId),
-    queryFn: () => fetchLevelManifest(levelId),
+    queryKey: [...queryKeys.levelManifest(levelId), "resolved"],
+    queryFn: () => resolveLevelManifest(levelId),
     enabled: !useDraft,
   });
 
@@ -63,10 +63,7 @@ export function LevelPlayApp() {
   const loadRoom = useCallback(
     async (roomId: string) => {
       if (!manifest) throw new Error("No manifest");
-      const embedded = manifest.rooms?.[roomId];
-      if (embedded) return embedded;
-      const map = await fetchRoomMap(manifest.id, roomId);
-      return tiledToLevel(roomId, map);
+      return resolveRoom(manifest, roomId);
     },
     [manifest],
   );
@@ -110,16 +107,16 @@ export function LevelPlayApp() {
   }, [manifest, loadRoom, playtestBeatId, playtestRevision, setPlayMode, setBeatMusicId]);
 
   useEffect(() => {
-    if (directorState?.playMode !== "cinematic") return;
+    if (directorState?.playMode === "complete") return;
     let raf = 0;
     let last = performance.now();
-    const tick = (now: number) => {
+    const loop = (now: number) => {
       const dt = Math.min(0.05, (now - last) / 1000);
       last = now;
       directorRef.current?.tick(dt);
-      raf = requestAnimationFrame(tick);
+      raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, [directorState?.playMode, directorState?.beatId]);
 
@@ -128,12 +125,22 @@ export function LevelPlayApp() {
     const t = window.setTimeout(() => {
       if (playtestFromLevelEditor) {
         setScreen("levelEditor");
-      } else {
-        setScreen("menu");
+        return;
       }
+      const result = advanceCampaignOrFinish();
+      if (result === "next") {
+        setDirectorState(null);
+        return;
+      }
+      setScreen("menu");
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [directorState?.playMode, playtestFromLevelEditor, setScreen]);
+  }, [
+    directorState?.playMode,
+    playtestFromLevelEditor,
+    setScreen,
+    advanceCampaignOrFinish,
+  ]);
 
   const scrollBeat = useMemo(() => {
     const beat = directorState?.manifest.beats[directorState.beatId];
@@ -210,6 +217,10 @@ export function LevelPlayApp() {
         <p className="pointer-events-none absolute bottom-16 left-1/2 z-20 max-w-lg -translate-x-1/2 text-center font-display text-lg tracking-wide text-amber-50/90">
           {cinematicCaption}
         </p>
+      ) : null}
+
+      {directorState?.playMode !== "complete" ? (
+        <TimeLimitHud seconds={directorState?.timeRemainingSec ?? null} />
       ) : null}
 
       {room && playMode === "room" ? (

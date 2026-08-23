@@ -22,6 +22,9 @@ export class LevelDirector {
   private listeners = new Set<DirectorListener>();
   private loadRoom: (roomId: string) => Promise<Level>;
   private pendingSpawn: { x: number; y: number } | null = null;
+  private elapsedSec = 0;
+  private timedOut = false;
+  private lastTimeEmitSec = -1;
 
   constructor(
     manifest: LevelManifest,
@@ -46,7 +49,14 @@ export class LevelDirector {
       room: this.room,
       caption: this.caption,
       cameraOverride: this.cameraOverride,
+      timeRemainingSec: this.timeRemainingSec(),
     };
+  }
+
+  private timeRemainingSec(): number | null {
+    const limit = this.manifest.timeLimitSec;
+    if (limit == null || limit <= 0) return null;
+    return Math.max(0, limit - this.elapsedSec);
   }
 
   getBeat(): Beat | null {
@@ -101,6 +111,7 @@ export class LevelDirector {
   }
 
   tick(dt: number) {
+    this.tickTime(dt);
     if (this.playMode !== "cinematic" || !this.cinematic) return;
     this.cinematic.tick(dt);
     this.caption = this.cinematic.caption;
@@ -109,6 +120,42 @@ export class LevelDirector {
     if (this.cinematic.isDone) {
       void this.advance();
     }
+  }
+
+  tickTime(dt: number) {
+    if (this.timedOut || this.playMode === "complete") return;
+    const limit = this.manifest.timeLimitSec;
+    if (limit == null || limit <= 0) return;
+
+    const prevRemaining = limit - this.elapsedSec;
+    this.elapsedSec += dt;
+    const remaining = limit - this.elapsedSec;
+
+    if (prevRemaining > 0 && remaining <= 0) {
+      void this.handleTimeout();
+      return;
+    }
+
+    const displaySec = Math.ceil(Math.max(0, remaining));
+    if (displaySec !== this.lastTimeEmitSec) {
+      this.lastTimeEmitSec = displaySec;
+      this.emit();
+    }
+  }
+
+  private async handleTimeout() {
+    if (this.timedOut) return;
+    this.timedOut = true;
+    this.lastTimeEmitSec = 0;
+
+    const target = this.manifest.onTimeout;
+    if (target && this.manifest.beats[target]) {
+      await this.enterBeat(target);
+      return;
+    }
+
+    this.playMode = "complete";
+    this.emit();
   }
 
   skipScroll(): Promise<DirectorState> {

@@ -2,10 +2,13 @@
   "id": "level-1",
   "title": "The Gate of Hades",
   "start": "intro",
+  "timeLimitSec": 3600,
+  "onTimeout": "timeout",
   "beats": {
     "intro": {
       "kind": "scroll",
       "id": "intro",
+      "name": "Descent into Hades",
       "text": [
         "There was a time when Orpheus could make the world fall silent.",
         "Kings laid down their crowns to hear him play. Wild beasts gathered at his feet. Even the trees seemed to bend toward the sound of his lyre.",
@@ -38,6 +41,7 @@
     "gate": {
       "kind": "room",
       "id": "gate",
+      "name": "The Gate",
       "roomId": "gate",
       "music": "Moonspell - Vampiria.mid",
       "onExit": {
@@ -47,12 +51,25 @@
     "outro": {
       "kind": "scroll",
       "id": "outro",
+      "name": "Outro",
       "text": [
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
         "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
       ],
       "next": "",
       "durationSec": 18
+    },
+    "timeout": {
+      "kind": "scroll",
+      "id": "timeout",
+      "name": "Time runs out",
+      "text": [
+        "The hourglass empties.",
+        "Orpheus feels the Underworld claim what time remains.",
+        "Before he can reach Eurydice, darkness closes in."
+      ],
+      "next": "",
+      "durationSec": 24
     }
   }
 }

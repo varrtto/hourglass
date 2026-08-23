@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMobile } from "@/hooks/useMobile";
 import { enterPlayViewport } from "../playViewport";
-import { fetchLevelManifest, fetchMusicCatalog, fetchRoomMap, midiMusicSrc, queryKeys } from "../queries";
+import { fetchMusicCatalog, midiMusicSrc, queryKeys } from "../queries";
 import { useGameStore } from "../store";
 import {
   getPlayingMidiSrc,
@@ -18,18 +18,28 @@ import {
 } from "../audio/midiEngine";
 import { tiledToLevel } from "../world/loadLevel";
 import type { Beat, LevelManifest, RoomBeat, ScrollBeat } from "../level/types";
-import { beatLabel } from "../level/types";
+import { beatLabel, beatOptionLabel } from "../level/types";
 import {
   cloneManifest,
   createBlankBeat,
   createBlankManifest,
   manifestSnapshot,
   orderedBeatIds,
-  parseManifestJson,
-  saveManifestDownload,
 } from "../level/manifest";
 import { cinematicStepSummary } from "../level/CinematicRunner";
 import { cloneLevel, createBlankLevel } from "./serialize";
+import { useEditorSessionStore } from "../editor/editorSessionStore";
+import { downloadLevelJson, importLevelJson } from "../db/levelsRepo";
+
+/** Default blank planted by the old ensureRoom path (32×16, no entities). */
+function isBlankRoomStub(room: import("../types").Level): boolean {
+  return (
+    room.width === 32 &&
+    room.height === 16 &&
+    (room.bats?.length ?? 0) === 0 &&
+    (room.exits?.length ?? 0) === 0
+  );
+}
 
 function nextId(prefix: string, existing: Set<string>): string {
   let n = 1;
@@ -48,18 +58,24 @@ export function LevelEditor() {
   const setDraftLevel = useGameStore((s) => s.setDraftLevel);
   const setScreen = useGameStore((s) => s.setScreen);
   const mobile = useMobile();
+  const campaignDraft = useEditorSessionStore((s) => s.campaignDraft);
+  const saveLevelToDb = useEditorSessionStore((s) => s.saveLevel);
+  const openRoomInSession = useEditorSessionStore((s) => s.openRoom);
+  const sessionStatus = useEditorSessionStore((s) => s.status);
 
   const [doc, setDoc] = useState<LevelManifest>(() => {
+    const session = useEditorSessionStore.getState().levelDraft;
+    if (session) return cloneManifest(session);
     const draft = useGameStore.getState().draftManifest;
     return draft ? cloneManifest(draft) : createBlankManifest();
   });
   const [selectedId, setSelectedId] = useState(doc.start);
   const [status, setStatus] = useState<string | null>(null);
   const [leavePrompt, setLeavePrompt] = useState<(() => void) | null>(null);
-  const [savedRevision, setSavedRevision] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const docRef = useRef(doc);
-  const savedSnapshotRef = useRef(manifestSnapshot(doc));
+  const [savedSnapshot, setSavedSnapshot] = useState(() => manifestSnapshot(doc));
+  const savedSnapshotRef = useRef(savedSnapshot);
 
   const audioQuery = useQuery({
     queryKey: queryKeys.musicCatalog(),
@@ -67,30 +83,35 @@ export function LevelEditor() {
   });
   const midTracks = audioQuery.data?.tracks ?? [];
 
-  const isDirty = useMemo(
-    () => manifestSnapshot(doc) !== savedSnapshotRef.current,
-    [doc, savedRevision],
-  );
+  const isDirty = manifestSnapshot(doc) !== savedSnapshot;
 
   useEffect(() => {
     docRef.current = doc;
+    useEditorSessionStore.getState().setLevelDraft(doc, true);
     return () => {
       useGameStore.getState().setDraftManifest(cloneManifest(docRef.current));
+      useEditorSessionStore.getState().setLevelDraft(docRef.current, true);
     };
   }, [doc]);
 
   const markSaved = useCallback((next?: LevelManifest) => {
-    savedSnapshotRef.current = manifestSnapshot(next ?? docRef.current);
-    setSavedRevision((r) => r + 1);
+    const snap = manifestSnapshot(next ?? docRef.current);
+    savedSnapshotRef.current = snap;
+    setSavedSnapshot(snap);
   }, []);
 
-  const attemptLeave = useCallback((leave: () => void) => {
-    if (manifestSnapshot(docRef.current) === savedSnapshotRef.current) {
-      leave();
-      return;
-    }
-    setLeavePrompt(() => leave);
-  }, []);
+  const leaveTarget = campaignDraft ? "campaignEditor" : "menu";
+
+  const attemptLeave = useCallback(
+    (leave: () => void) => {
+      if (manifestSnapshot(docRef.current) === savedSnapshotRef.current) {
+        leave();
+        return;
+      }
+      setLeavePrompt(() => leave);
+    },
+    [],
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -98,11 +119,11 @@ export function LevelEditor() {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       e.preventDefault();
-      attemptLeave(() => setScreen("menu"));
+      attemptLeave(() => setScreen(leaveTarget));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [attemptLeave, setScreen]);
+  }, [attemptLeave, leaveTarget, setScreen]);
 
   useEffect(() => {
     if (!isDirty) return;
@@ -173,34 +194,22 @@ export function LevelEditor() {
     [commit, selectedId],
   );
 
-  const loadLevel1 = useCallback(async () => {
-    const load = async () => {
-      try {
-        const manifest = await fetchLevelManifest("level-1");
-        commit(cloneManifest(manifest));
-        setSelectedId(manifest.start);
-        markSaved(manifest);
-        setStatus("Loaded level 1");
-      } catch {
-        setStatus("Failed to load level 1");
-      }
-    };
-    attemptLeave(() => void load());
-  }, [attemptLeave, commit, markSaved]);
-
   const importFile = useCallback(
     (file: File) => {
       const reader = new FileReader();
       reader.onload = () => {
-        try {
-          const manifest = parseManifestJson(String(reader.result ?? ""));
-          commit(cloneManifest(manifest));
-          setSelectedId(manifest.start);
-          markSaved(manifest);
-          setStatus(`Imported ${file.name}`);
-        } catch {
-          setStatus("Import failed — need level.json");
-        }
+        void (async () => {
+          try {
+            const manifest = await importLevelJson(String(reader.result ?? ""));
+            commit(cloneManifest(manifest));
+            useEditorSessionStore.getState().setLevelDraft(manifest, false);
+            setSelectedId(manifest.start);
+            markSaved(manifest);
+            setStatus(`Imported & saved ${file.name}`);
+          } catch {
+            setStatus("Import failed — need level.json");
+          }
+        })();
       };
       reader.readAsText(file);
     },
@@ -208,10 +217,28 @@ export function LevelEditor() {
   );
 
   const download = useCallback(() => {
-    saveManifestDownload(docRef.current);
+    downloadLevelJson(docRef.current);
     markSaved();
     setStatus("Downloaded level.json");
   }, [markSaved]);
+
+  const saveToDb = useCallback(async () => {
+    useEditorSessionStore.getState().setLevelDraft(docRef.current, true);
+    await saveLevelToDb();
+    const saved = useEditorSessionStore.getState().levelDraft;
+    if (saved) {
+      commit(cloneManifest(saved));
+      markSaved(saved);
+      // If editing a campaign, ensure the level id is on the playlist.
+      const campaign = useEditorSessionStore.getState().campaignDraft;
+      if (campaign && !campaign.levelIds.includes(saved.id)) {
+        useEditorSessionStore.getState().patchCampaignDraft({
+          levelIds: [...campaign.levelIds, saved.id],
+        });
+      }
+    }
+    setStatus(useEditorSessionStore.getState().status ?? "Level saved");
+  }, [commit, markSaved, saveLevelToDb]);
 
   const playtest = useCallback(
     (fromBeatId?: string) => {
@@ -224,33 +251,17 @@ export function LevelEditor() {
 
   const editRoom = useCallback(
     async (roomId: string) => {
-      let room = docRef.current.rooms?.[roomId];
-      if (!room) {
-        try {
-          const map = await fetchRoomMap(docRef.current.id, roomId);
-          room = tiledToLevel(roomId, map);
-        } catch {
-          room = createBlankLevel(32, 16);
-        }
-      }
-      setDraftLevel({ ...cloneLevel(room), id: roomId });
-      setDraftManifest(cloneManifest(docRef.current));
+      useEditorSessionStore.getState().setLevelDraft(docRef.current, true);
+      await openRoomInSession(roomId);
+      const room = useEditorSessionStore.getState().roomDraft;
+      const level = useEditorSessionStore.getState().levelDraft;
+      if (level) commit(cloneManifest(level));
+      if (room) setDraftLevel(room);
+      if (level) setDraftManifest(cloneManifest(level));
       useGameStore.getState().setBuilderReturnScreen("levelEditor");
       setScreen("builder");
     },
-    [setDraftLevel, setDraftManifest, setScreen],
-  );
-
-  const ensureRoom = useCallback(
-    (roomId: string) => {
-      const rooms = docRef.current.rooms ?? {};
-      if (rooms[roomId]) return;
-      commit({
-        ...docRef.current,
-        rooms: { ...rooms, [roomId]: createBlankLevel(32, 16) },
-      });
-    },
-    [commit],
+    [commit, openRoomInSession, setDraftLevel, setDraftManifest, setScreen],
   );
 
   return (
@@ -258,12 +269,11 @@ export function LevelEditor() {
       {leavePrompt ? (
         <LeavePrompt
           onSave={() => {
-            saveManifestDownload(docRef.current);
-            markSaved();
-            setStatus("Downloaded level.json");
-            const leave = leavePrompt;
-            setLeavePrompt(null);
-            leave();
+            void saveToDb().then(() => {
+              const leave = leavePrompt;
+              setLeavePrompt(null);
+              leave();
+            });
           }}
           onDiscard={() => {
             const leave = leavePrompt;
@@ -279,7 +289,7 @@ export function LevelEditor() {
             Orpheus&apos; Descent
           </p>
           <h1 className="font-display text-xl tracking-[0.14em] text-amber-50">
-            CREATE YOUR ADVENTURE
+            LEVEL EDITOR
           </h1>
         </div>
         <ToolBtn
@@ -295,9 +305,11 @@ export function LevelEditor() {
         >
           New
         </ToolBtn>
-        <ToolBtn onClick={() => void loadLevel1()}>Load level 1</ToolBtn>
         <ToolBtn onClick={() => fileRef.current?.click()}>Import</ToolBtn>
         <ToolBtn onClick={download}>Download</ToolBtn>
+        <ToolBtn accent onClick={() => void saveToDb()}>
+          Save
+        </ToolBtn>
         <ToolBtn onClick={() => playtest()} accent>
           Playtest
         </ToolBtn>
@@ -307,12 +319,13 @@ export function LevelEditor() {
           onClick={() => {
             attemptLeave(() => {
               setDraftManifest(cloneManifest(doc));
-              setScreen("menu");
+              setScreen(leaveTarget);
             });
           }}
           className="font-display ml-auto text-sm tracking-wide text-amber-200/75 transition hover:text-amber-50"
         >
-          ▸ Menu{isDirty ? " *" : ""}
+          ▸ {leaveTarget === "campaignEditor" ? "Campaign" : "Menu"}
+          {isDirty ? " *" : ""}
         </button>
         <input
           ref={fileRef}
@@ -348,6 +361,49 @@ export function LevelEditor() {
               onChange={(e) => commit({ ...doc, id: e.target.value })}
               className="mt-1 w-full rounded border border-amber-200/20 bg-black/40 px-2 py-1 font-mono text-xs text-amber-50"
             />
+            <label className="mt-2 block font-mono text-[10px] tracking-wide text-amber-100/50 uppercase">
+              Time limit (minutes)
+            </label>
+            <input
+              type="number"
+              min={0}
+              placeholder="None"
+              value={
+                doc.timeLimitSec != null && doc.timeLimitSec > 0
+                  ? Math.round(doc.timeLimitSec / 60)
+                  : ""
+              }
+              onChange={(e) => {
+                const raw = e.target.value;
+                commit({
+                  ...doc,
+                  timeLimitSec:
+                    raw === "" ? undefined : Math.max(0, Number(raw)) * 60,
+                });
+              }}
+              className="mt-1 w-full rounded border border-amber-200/20 bg-black/40 px-2 py-1 font-mono text-xs text-amber-50"
+            />
+            <label className="mt-2 block font-mono text-[10px] tracking-wide text-amber-100/50 uppercase">
+              On timeout → beat
+            </label>
+            <select
+              value={doc.onTimeout ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                commit({
+                  ...doc,
+                  onTimeout: v === "" ? undefined : v,
+                });
+              }}
+              className="mt-1 w-full rounded border border-amber-200/20 bg-black/40 px-2 py-1 font-mono text-xs text-amber-50"
+            >
+              <option value="">None (level complete)</option>
+              {beatOrder.map((id) => (
+                <option key={id} value={id}>
+                  {beatOptionLabel(doc.beats[id], id)}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex items-center gap-1 border-b border-amber-200/10 px-2 py-1.5">
@@ -386,11 +442,12 @@ export function LevelEditor() {
                       {isStart ? "★" : "·"}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block font-mono text-[11px] text-amber-200/60">
-                        {id}
-                      </span>
                       <span className="block truncate font-display text-sm">
                         {beatLabel(beat)}
+                      </span>
+                      <span className="block font-mono text-[11px] text-amber-200/60">
+                        {id}
+                        <span className="text-amber-200/35"> · {beat.kind}</span>
                       </span>
                     </span>
                   </button>
@@ -405,6 +462,7 @@ export function LevelEditor() {
             <BeatEditor
               beat={selected}
               beatId={selectedId}
+              beats={doc.beats}
               allBeatIds={Object.keys(doc.beats)}
               roomIds={roomIds}
               musicTracks={midTracks}
@@ -413,7 +471,6 @@ export function LevelEditor() {
               onChange={(patch) => updateBeat(selectedId, patch)}
               onRemove={() => removeBeat(selectedId)}
               onEditRoom={editRoom}
-              onEnsureRoom={ensureRoom}
             />
           ) : (
             <p className="font-mono text-amber-100/50">Select a beat</p>
@@ -437,6 +494,7 @@ export function LevelEditor() {
 function BeatEditor({
   beat,
   beatId,
+  beats,
   allBeatIds,
   roomIds,
   musicTracks,
@@ -445,10 +503,10 @@ function BeatEditor({
   onChange,
   onRemove,
   onEditRoom,
-  onEnsureRoom,
 }: {
   beat: Beat;
   beatId: string;
+  beats: Record<string, Beat>;
   allBeatIds: string[];
   roomIds: string[];
   musicTracks: string[];
@@ -457,15 +515,15 @@ function BeatEditor({
   onChange: (patch: Partial<Beat>) => void;
   onRemove: () => void;
   onEditRoom: (roomId: string) => void;
-  onEnsureRoom: (roomId: string) => void;
 }) {
   const nextOptions = allBeatIds.filter((id) => id !== beatId);
+  const title = beat.name?.trim() || beatId;
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-2xl tracking-wide text-amber-50">
-          {beatId}
+          {title}
           <span className="ml-3 font-mono text-sm text-amber-200/50">
             {beat.kind}
           </span>
@@ -486,6 +544,22 @@ function BeatEditor({
         </div>
       </div>
 
+      <Field label="Name">
+        <input
+          value={beat.name ?? ""}
+          placeholder={beatId}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange({ name: v === "" ? undefined : v } as Partial<Beat>);
+          }}
+          className="w-full rounded border border-amber-200/20 bg-black/40 px-2 py-1.5 font-display text-sm text-amber-50"
+        />
+        <p className="mt-1 font-mono text-[10px] text-amber-100/40">
+          Display name only — wiring still uses id{" "}
+          <span className="text-amber-200/60">{beatId}</span>
+        </p>
+      </Field>
+
       <MusicSelect
         beat={beat}
         tracks={musicTracks}
@@ -495,6 +569,7 @@ function BeatEditor({
       {beat.kind === "scroll" ? (
         <ScrollBeatForm
           beat={beat}
+          beats={beats}
           nextOptions={nextOptions}
           onChange={onChange}
         />
@@ -503,19 +578,18 @@ function BeatEditor({
       {beat.kind === "room" ? (
         <RoomBeatForm
           beat={beat}
+          beats={beats}
           nextOptions={nextOptions}
           roomIds={roomIds}
           onChange={onChange}
-          onEditRoom={() => {
-            onEnsureRoom(beat.roomId);
-            onEditRoom(beat.roomId);
-          }}
+          onEditRoom={() => onEditRoom(beat.roomId)}
         />
       ) : null}
 
       {beat.kind === "cinematic" ? (
         <CinematicBeatForm
           beat={beat}
+          beats={beats}
           nextOptions={nextOptions}
           onChange={onChange}
         />
@@ -526,10 +600,12 @@ function BeatEditor({
 
 function ScrollBeatForm({
   beat,
+  beats,
   nextOptions,
   onChange,
 }: {
   beat: ScrollBeat;
+  beats: Record<string, Beat>;
   nextOptions: string[];
   onChange: (patch: Partial<ScrollBeat>) => void;
 }) {
@@ -562,6 +638,7 @@ function ScrollBeatForm({
       <NextSelect
         value={beat.next}
         options={nextOptions}
+        beats={beats}
         onChange={(next) => onChange({ next })}
       />
     </div>
@@ -570,12 +647,14 @@ function ScrollBeatForm({
 
 function RoomBeatForm({
   beat,
+  beats,
   nextOptions,
   roomIds,
   onChange,
   onEditRoom,
 }: {
   beat: RoomBeat;
+  beats: Record<string, Beat>;
   nextOptions: string[];
   roomIds: string[];
   onChange: (patch: Partial<RoomBeat>) => void;
@@ -630,7 +709,7 @@ function RoomBeatForm({
                 <option value="">—</option>
                 {nextOptions.map((id) => (
                   <option key={id} value={id}>
-                    {id}
+                    {beatOptionLabel(beats[id], id)}
                   </option>
                 ))}
               </select>
@@ -667,6 +746,7 @@ function RoomBeatForm({
         label="Fallback next (no exit zones)"
         value={beat.next ?? ""}
         options={nextOptions}
+        beats={beats}
         onChange={(next) => onChange({ next })}
       />
     </div>
@@ -675,10 +755,12 @@ function RoomBeatForm({
 
 function CinematicBeatForm({
   beat,
+  beats,
   nextOptions,
   onChange,
 }: {
   beat: import("../level/types").CinematicBeat;
+  beats: Record<string, Beat>;
   nextOptions: string[];
   onChange: (patch: Partial<import("../level/types").CinematicBeat>) => void;
 }) {
@@ -709,6 +791,7 @@ function CinematicBeatForm({
       <NextSelect
         value={beat.next}
         options={nextOptions}
+        beats={beats}
         onChange={(next) => onChange({ next })}
       />
     </div>
@@ -859,11 +942,13 @@ function NextSelect({
   label = "Next beat",
   value,
   options,
+  beats,
   onChange,
 }: {
   label?: string;
   value: string;
   options: string[];
+  beats: Record<string, Beat>;
   onChange: (next: string) => void;
 }) {
   return (
@@ -876,7 +961,7 @@ function NextSelect({
         <option value="">— end level —</option>
         {options.map((id) => (
           <option key={id} value={id}>
-            {id}
+            {beatOptionLabel(beats[id], id)}
           </option>
         ))}
       </select>
