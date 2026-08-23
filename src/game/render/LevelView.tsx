@@ -81,3 +81,64 @@ export function drawLevel(ctx: CanvasRenderingContext2D, cam: Camera2D, level: L
     }
   }
 }
+
+/** Stone gate / portal marker for exit zones. */
+export function drawExits(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
+  for (const exit of level.exits ?? []) {
+    const bl = worldToScreen(cam, exit.x, exit.y);
+    const tr = worldToScreen(cam, exit.x + exit.width, exit.y + exit.height);
+    const x = Math.min(bl.x, tr.x);
+    const y = Math.min(bl.y, tr.y);
+    const w = Math.abs(tr.x - bl.x);
+    const h = Math.abs(tr.y - bl.y);
+    if (w < 1 || h < 1) continue;
+
+    const pillar = Math.max(2, w * 0.18);
+    const lintel = Math.max(3, h * 0.14);
+
+    // Void behind the gate
+    ctx.fillStyle = "rgba(8, 4, 12, 0.85)";
+    ctx.fillRect(x + pillar * 0.6, y + lintel, w - pillar * 1.2, h - lintel);
+
+    // Inner glow
+    const glow = ctx.createLinearGradient(x, y + lintel, x, y + h);
+    glow.addColorStop(0, "rgba(180, 90, 40, 0.35)");
+    glow.addColorStop(0.55, "rgba(90, 40, 20, 0.15)");
+    glow.addColorStop(1, "rgba(20, 8, 6, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(x + pillar * 0.6, y + lintel, w - pillar * 1.2, h - lintel);
+
+    // Stone pillars
+    ctx.fillStyle = "#5a4638";
+    ctx.fillRect(x, y, pillar, h);
+    ctx.fillRect(x + w - pillar, y, pillar, h);
+    ctx.fillStyle = "#3d2e24";
+    ctx.fillRect(x + 1, y + 2, pillar - 2, h - 2);
+    ctx.fillRect(x + w - pillar + 1, y + 2, pillar - 2, h - 2);
+
+    // Lintel
+    ctx.fillStyle = "#6b5344";
+    ctx.fillRect(x, y, w, lintel);
+    ctx.fillStyle = "#8a6d54";
+    ctx.fillRect(x + 1, y + 1, w - 2, Math.max(1, lintel * 0.35));
+
+    // Arch cue
+    ctx.strokeStyle = "rgba(232, 197, 71, 0.55)";
+    ctx.lineWidth = Math.max(1, cam.ppt * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(x + pillar, y + lintel);
+    ctx.quadraticCurveTo(x + w / 2, y + lintel * 0.2, x + w - pillar, y + lintel);
+    ctx.stroke();
+
+    // Keystone
+    const kx = x + w / 2;
+    const ky = y + lintel * 0.55;
+    ctx.fillStyle = "#e8c547";
+    ctx.beginPath();
+    ctx.moveTo(kx, ky - lintel * 0.35);
+    ctx.lineTo(kx + pillar * 0.35, ky + lintel * 0.15);
+    ctx.lineTo(kx - pillar * 0.35, ky + lintel * 0.15);
+    ctx.closePath();
+    ctx.fill();
+  }
+}

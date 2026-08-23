@@ -81,7 +81,7 @@ export function GameApp({ mode = "practice" }: { mode?: "play" | "practice" }) {
     >
       {practice && !mobile ? <TuningPanel /> : null}
       {loading ? (
-        <p className="p-6 font-mono text-amber-100">Loading gym…</p>
+        <p className="p-6 font-mono text-amber-100">Loading room…</p>
       ) : failed || !level ? (
         <p className="p-6 font-mono text-red-300">Failed to load level.</p>
       ) : (

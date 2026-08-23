@@ -59,6 +59,7 @@ export function drawPlayer(
   bodyWidth: number,
   sprites: SpriteManifest | null,
   sheet: HTMLImageElement | null,
+  alpha = 1,
 ) {
   // Sprite art already encodes crouch/hang poses — keep a constant draw
   // size. Collision still uses player.height; only the fallback box scales.
@@ -83,6 +84,7 @@ export function drawPlayer(
     const sy = row * sprites.frameHeight;
 
     ctx.save();
+    ctx.globalAlpha = alpha;
     // Anchor at feet so crouch art sits on the floor instead of floating.
     ctx.translate(feet.x, feet.y - h / 2);
     ctx.scale(player.facing, 1);
@@ -103,6 +105,8 @@ export function drawPlayer(
   }
 
   const box = worldToScreen(cam, player.x - bodyWidth / 2, player.y + player.height);
+  ctx.save();
+  ctx.globalAlpha = alpha;
   ctx.fillStyle = "#e8d5b5";
   ctx.fillRect(
     box.x,
@@ -110,6 +114,7 @@ export function drawPlayer(
     bodyWidth * cam.ppt,
     player.height * cam.ppt,
   );
+  ctx.restore();
 }
 
 export function drawProjectiles(

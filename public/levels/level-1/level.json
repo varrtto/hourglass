@@ -1,0 +1,58 @@
+{
+  "id": "level-1",
+  "title": "The Gate of Hades",
+  "start": "intro",
+  "beats": {
+    "intro": {
+      "kind": "scroll",
+      "id": "intro",
+      "text": [
+        "There was a time when Orpheus could make the world fall silent.",
+        "Kings laid down their crowns to hear him play. Wild beasts gathered at his feet. Even the trees seemed to bend toward the sound of his lyre.",
+        "And among all things he loved, none was dearer to him than Eurydice.",
+        "But love, like all mortal things, is fragile.",
+        "One day, as Eurydice wandered through the fields, a serpent struck from the grass. Its venom spread swiftly through her veins, and before Orpheus could reach her, she was gone.",
+        "The world became silent.",
+        "Orpheus could not accept it.",
+        "He wandered for days and nights, calling her name. At last, with nothing left but grief, he raised his voice to the heavens.",
+        "He begged Zeus, ruler of gods and men, to hear the sorrow of a mortal who had lost everything.",
+        "And Zeus heard him.",
+        "From the heavens descended Hermes, swift messenger of the gods and guide of the souls of the dead.",
+        "He led Orpheus beyond the lands of the living, through valleys where no bird sang and beneath skies where no sun could be seen.",
+        "At last, they came to a vast stone gate.",
+        "Behind it lay the realm of Hades.",
+        "Hermes stopped.",
+        "Before them stood Cerberus, the hound of the Underworld, its three heads watching from the darkness. Its growl rolled through the earth like distant thunder.",
+        "Orpheus stood before the beast, clutching his lyre.",
+        "Hermes looked upon him one final time.",
+        "—Beyond this gate, Orpheus, you walk alone.",
+        "The gates opened.",
+        "Darkness swallowed the light.",
+        "And somewhere beyond the river of the dead, Eurydice was waiting.",
+        "60:00",
+        "Orpheus stepped into the Underworld."
+      ],
+      "next": "gate",
+      "durationSec": 90
+    },
+    "gate": {
+      "kind": "room",
+      "id": "gate",
+      "roomId": "gate",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "outro"
+      }
+    },
+    "outro": {
+      "kind": "scroll",
+      "id": "outro",
+      "text": [
+        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+      ],
+      "next": "",
+      "durationSec": 18
+    }
+  }
+}

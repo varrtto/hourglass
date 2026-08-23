@@ -138,6 +138,10 @@ export function resolveTargetBeat(
   return beat.next ?? null;
 }
 
+export function manifestSnapshot(m: LevelManifest): string {
+  return JSON.stringify(m);
+}
+
 export function saveManifestDownload(manifest: LevelManifest) {
   const blob = new Blob([JSON.stringify(manifest, null, 2)], {
     type: "application/json",

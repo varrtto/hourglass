@@ -8,7 +8,6 @@ import { MenuBackdrop } from "./MenuBackdrop";
 
 const ITEMS: { screen: AppScreen; label: string; action?: "newGame" }[] = [
   { screen: "play", label: "Start new game", action: "newGame" },
-  { screen: "gym", label: "Practice Gym" },
   { screen: "levelEditor", label: "Create your adventure" },
   { screen: "scoreboard", label: "Scoreboard" },
   { screen: "config", label: "Config" },
@@ -27,14 +26,9 @@ export function MainMenu() {
       const item = ITEMS[index];
       if (!item) return;
       if (item.action === "newGame") {
-        useGameStore.getState().startNewGame("gym");
+        useGameStore.getState().startNewGame("level-1");
         void enterPlayViewport();
         return;
-      }
-      if (item.screen === "gym") {
-        useGameStore.getState().setPlaytestFromBuilder(false);
-        useGameStore.getState().setPlaytestFromLevelEditor(false);
-        void enterPlayViewport();
       }
       setScreen(item.screen);
       if (item.screen === "exited") {

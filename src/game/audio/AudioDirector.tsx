@@ -2,7 +2,12 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
-import { fetchAudioPlaylist, queryKeys } from "../queries";
+import {
+  fetchAudioPlaylist,
+  isMidiFilename,
+  midiMusicSrc,
+  queryKeys,
+} from "../queries";
 import type { AppScreen } from "../store";
 import { useGameStore } from "../store";
 import {
@@ -18,9 +23,24 @@ function isMidiSrc(src: string) {
   return /\.midi?$/i.test(src);
 }
 
-function trackForScreen(screen: AppScreen): string | null {
-  if (screen === "menu") return "menu";
-  if (screen === "play" || screen === "gym") return "gym";
+type ResolvedTrack = { src: string };
+
+function resolveMusic(
+  screen: AppScreen,
+  beatMusicId: string | null,
+  playlist: { id: string; src: string }[] | undefined,
+): ResolvedTrack | null {
+  if (screen === "menu") {
+    const track = playlist?.find((t) => t.id === "menu");
+    return track ? { src: track.src } : null;
+  }
+  if (screen === "play" && beatMusicId) {
+    if (isMidiFilename(beatMusicId)) {
+      return { src: midiMusicSrc(beatMusicId) };
+    }
+    const track = playlist?.find((t) => t.id === beatMusicId);
+    return track ? { src: track.src } : null;
+  }
   return null;
 }
 
@@ -71,6 +91,7 @@ function LoopAudio({ src, gain }: { src: string; gain: number }) {
 
 export function AudioDirector() {
   const screen = useGameStore((s) => s.screen);
+  const beatMusicId = useGameStore((s) => s.beatMusicId);
   const muted = useGameStore((s) => s.muted);
   const musicVolume = useGameStore((s) => s.musicVolume);
 
@@ -111,8 +132,7 @@ export function AudioDirector() {
     };
   }, []);
 
-  const id = trackForScreen(screen);
-  const track = audioQuery.data?.music.find((t) => t.id === id);
+  const track = resolveMusic(screen, beatMusicId, audioQuery.data?.music);
   if (!track) return null;
 
   const src = encodeURI(track.src);

@@ -33,7 +33,7 @@ const emptyDebug: DebugSnapshot = {
 export type AppScreen =
   | "menu"
   | "play"
-  | "gym"
+  | "roomPlaytest"
   | "builder"
   | "levelEditor"
   | "scoreboard"
@@ -67,6 +67,7 @@ type GameStore = {
   playtestBeatId: string | null;
   playtestRevision: number;
   playMode: PlayMode;
+  beatMusicId: string | null;
   builderReturnScreen: AppScreen | null;
   setScreen: (screen: AppScreen) => void;
   setPaused: (paused: boolean) => void;
@@ -80,6 +81,7 @@ type GameStore = {
   setPlaytestFromBuilder: (value: boolean) => void;
   setPlaytestFromLevelEditor: (value: boolean) => void;
   setPlayMode: (mode: PlayMode) => void;
+  setBeatMusicId: (id: string | null) => void;
   setBuilderReturnScreen: (screen: AppScreen | null) => void;
   startPlaytest: (level: Level) => void;
   startLevelPlaytest: (manifest: LevelManifest, beatId?: string) => void;
@@ -90,10 +92,10 @@ type GameStore = {
 
 export const useGameStore = create<GameStore>((set) => ({
   screen: "menu",
-  levelId: "gym",
+  levelId: "level-1",
   paused: false,
   muted: true,
-  musicVolume: 0.7,
+  musicVolume: 0.6,
   showDebug: true,
   kinematics: { ...defaultKinematics },
   debug: emptyDebug,
@@ -107,12 +109,13 @@ export const useGameStore = create<GameStore>((set) => ({
   playtestBeatId: null,
   playtestRevision: 0,
   playMode: "room",
+  beatMusicId: null,
   builderReturnScreen: null,
   setScreen: (screen) =>
     set({
       screen,
-      paused: screen !== "play" && screen !== "gym",
-      ...(screen !== "play" && screen !== "gym"
+      paused: screen !== "play" && screen !== "roomPlaytest",
+      ...(screen !== "play" && screen !== "roomPlaytest"
         ? { playMode: "room" as PlayMode }
         : {}),
     }),
@@ -130,6 +133,7 @@ export const useGameStore = create<GameStore>((set) => ({
   setPlaytestFromLevelEditor: (playtestFromLevelEditor) =>
     set({ playtestFromLevelEditor }),
   setPlayMode: (playMode) => set({ playMode }),
+  setBeatMusicId: (beatMusicId) => set({ beatMusicId }),
   setBuilderReturnScreen: (builderReturnScreen) => set({ builderReturnScreen }),
   startPlaytest: (level) =>
     set((s) => ({
@@ -147,7 +151,7 @@ export const useGameStore = create<GameStore>((set) => ({
       playtestFromLevelEditor: false,
       playtestBeatId: null,
       playtestRevision: s.playtestRevision + 1,
-      screen: "gym",
+      screen: "roomPlaytest",
       paused: false,
       playMode: "room",
     })),

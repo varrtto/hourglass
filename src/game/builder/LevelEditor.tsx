@@ -1,10 +1,21 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMobile } from "@/hooks/useMobile";
 import { enterPlayViewport } from "../playViewport";
-import { fetchLevelManifest, fetchRoomMap } from "../queries";
+import { fetchLevelManifest, fetchMusicCatalog, fetchRoomMap, midiMusicSrc, queryKeys } from "../queries";
 import { useGameStore } from "../store";
+import {
+  getPlayingMidiSrc,
+  isMidiPaused,
+  pauseMidi,
+  playMidiUrl,
+  resumeMidi,
+  resumeMidiContext,
+  setMidiGain,
+  stopMidi,
+} from "../audio/midiEngine";
 import { tiledToLevel } from "../world/loadLevel";
 import type { Beat, LevelManifest, RoomBeat, ScrollBeat } from "../level/types";
 import { beatLabel } from "../level/types";
@@ -12,6 +23,7 @@ import {
   cloneManifest,
   createBlankBeat,
   createBlankManifest,
+  manifestSnapshot,
   orderedBeatIds,
   parseManifestJson,
   saveManifestDownload,
@@ -23,6 +35,11 @@ function nextId(prefix: string, existing: Set<string>): string {
   let n = 1;
   while (existing.has(`${prefix}-${n}`)) n += 1;
   return `${prefix}-${n}`;
+}
+
+function beatMusicSelectValue(beat: Beat): string {
+  if (beat.music === undefined) return "";
+  return beat.music;
 }
 
 export function LevelEditor() {
@@ -38,8 +55,22 @@ export function LevelEditor() {
   });
   const [selectedId, setSelectedId] = useState(doc.start);
   const [status, setStatus] = useState<string | null>(null);
+  const [leavePrompt, setLeavePrompt] = useState<(() => void) | null>(null);
+  const [savedRevision, setSavedRevision] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const docRef = useRef(doc);
+  const savedSnapshotRef = useRef(manifestSnapshot(doc));
+
+  const audioQuery = useQuery({
+    queryKey: queryKeys.musicCatalog(),
+    queryFn: fetchMusicCatalog,
+  });
+  const midTracks = audioQuery.data?.tracks ?? [];
+
+  const isDirty = useMemo(
+    () => manifestSnapshot(doc) !== savedSnapshotRef.current,
+    [doc, savedRevision],
+  );
 
   useEffect(() => {
     docRef.current = doc;
@@ -47,6 +78,41 @@ export function LevelEditor() {
       useGameStore.getState().setDraftManifest(cloneManifest(docRef.current));
     };
   }, [doc]);
+
+  const markSaved = useCallback((next?: LevelManifest) => {
+    savedSnapshotRef.current = manifestSnapshot(next ?? docRef.current);
+    setSavedRevision((r) => r + 1);
+  }, []);
+
+  const attemptLeave = useCallback((leave: () => void) => {
+    if (manifestSnapshot(docRef.current) === savedSnapshotRef.current) {
+      leave();
+      return;
+    }
+    setLeavePrompt(() => leave);
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      e.preventDefault();
+      attemptLeave(() => setScreen("menu"));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [attemptLeave, setScreen]);
+
+  useEffect(() => {
+    if (!isDirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [isDirty]);
 
   const beatOrder = useMemo(() => orderedBeatIds(doc), [doc]);
   const selected = doc.beats[selectedId] ?? null;
@@ -107,16 +173,20 @@ export function LevelEditor() {
     [commit, selectedId],
   );
 
-  const loadGym = useCallback(async () => {
-    try {
-      const manifest = await fetchLevelManifest("gym");
-      commit(cloneManifest(manifest));
-      setSelectedId(manifest.start);
-      setStatus("Loaded gym level");
-    } catch {
-      setStatus("Failed to load gym level");
-    }
-  }, [commit]);
+  const loadLevel1 = useCallback(async () => {
+    const load = async () => {
+      try {
+        const manifest = await fetchLevelManifest("level-1");
+        commit(cloneManifest(manifest));
+        setSelectedId(manifest.start);
+        markSaved(manifest);
+        setStatus("Loaded level 1");
+      } catch {
+        setStatus("Failed to load level 1");
+      }
+    };
+    attemptLeave(() => void load());
+  }, [attemptLeave, commit, markSaved]);
 
   const importFile = useCallback(
     (file: File) => {
@@ -126,6 +196,7 @@ export function LevelEditor() {
           const manifest = parseManifestJson(String(reader.result ?? ""));
           commit(cloneManifest(manifest));
           setSelectedId(manifest.start);
+          markSaved(manifest);
           setStatus(`Imported ${file.name}`);
         } catch {
           setStatus("Import failed — need level.json");
@@ -133,8 +204,14 @@ export function LevelEditor() {
       };
       reader.readAsText(file);
     },
-    [commit],
+    [commit, markSaved],
   );
+
+  const download = useCallback(() => {
+    saveManifestDownload(docRef.current);
+    markSaved();
+    setStatus("Downloaded level.json");
+  }, [markSaved]);
 
   const playtest = useCallback(
     (fromBeatId?: string) => {
@@ -178,6 +255,24 @@ export function LevelEditor() {
 
   return (
     <div className="flex h-dvh w-full flex-col bg-[#0e0a08] text-amber-50">
+      {leavePrompt ? (
+        <LeavePrompt
+          onSave={() => {
+            saveManifestDownload(docRef.current);
+            markSaved();
+            setStatus("Downloaded level.json");
+            const leave = leavePrompt;
+            setLeavePrompt(null);
+            leave();
+          }}
+          onDiscard={() => {
+            const leave = leavePrompt;
+            setLeavePrompt(null);
+            leave();
+          }}
+          onCancel={() => setLeavePrompt(null)}
+        />
+      ) : null}
       <header className="flex flex-wrap items-center gap-2 border-b border-amber-200/15 px-4 py-2">
         <div className="mr-4">
           <p className="font-display text-[10px] tracking-[0.35em] text-amber-200/60 uppercase">
@@ -187,10 +282,22 @@ export function LevelEditor() {
             CREATE YOUR ADVENTURE
           </h1>
         </div>
-        <ToolBtn onClick={() => commit(createBlankManifest())}>New</ToolBtn>
-        <ToolBtn onClick={() => void loadGym()}>Load gym</ToolBtn>
+        <ToolBtn
+          onClick={() =>
+            attemptLeave(() => {
+              const blank = createBlankManifest();
+              commit(blank);
+              setSelectedId(blank.start);
+              markSaved(blank);
+              setStatus("New level");
+            })
+          }
+        >
+          New
+        </ToolBtn>
+        <ToolBtn onClick={() => void loadLevel1()}>Load level 1</ToolBtn>
         <ToolBtn onClick={() => fileRef.current?.click()}>Import</ToolBtn>
-        <ToolBtn onClick={() => saveManifestDownload(doc)}>Download</ToolBtn>
+        <ToolBtn onClick={download}>Download</ToolBtn>
         <ToolBtn onClick={() => playtest()} accent>
           Playtest
         </ToolBtn>
@@ -198,12 +305,14 @@ export function LevelEditor() {
         <button
           type="button"
           onClick={() => {
-            setDraftManifest(cloneManifest(doc));
-            setScreen("menu");
+            attemptLeave(() => {
+              setDraftManifest(cloneManifest(doc));
+              setScreen("menu");
+            });
           }}
           className="font-display ml-auto text-sm tracking-wide text-amber-200/75 transition hover:text-amber-50"
         >
-          ▸ Menu
+          ▸ Menu{isDirty ? " *" : ""}
         </button>
         <input
           ref={fileRef}
@@ -212,7 +321,7 @@ export function LevelEditor() {
           className="hidden"
           onChange={(e) => {
             const file = e.target.files?.[0];
-            if (file) importFile(file);
+            if (file) attemptLeave(() => importFile(file));
             e.target.value = "";
           }}
         />
@@ -298,6 +407,7 @@ export function LevelEditor() {
               beatId={selectedId}
               allBeatIds={Object.keys(doc.beats)}
               roomIds={roomIds}
+              musicTracks={midTracks}
               isStart={selectedId === doc.start}
               onSetStart={() => commit({ ...doc, start: selectedId })}
               onChange={(patch) => updateBeat(selectedId, patch)}
@@ -312,10 +422,11 @@ export function LevelEditor() {
       </div>
 
       <footer className="border-t border-amber-200/15 px-4 py-1.5 font-mono text-[11px] text-amber-100/50">
-        {status ?? `${beatOrder.length} beats · start: ${doc.start}`}
+        {status ??
+          `${beatOrder.length} beats · start: ${doc.start}${isDirty ? " · unsaved" : ""}`}
         {!mobile ? (
           <span className="float-right">
-            Wire beats via next / onExit · Esc menu
+            Wire beats via next / onExit · Esc to leave
           </span>
         ) : null}
       </footer>
@@ -328,6 +439,7 @@ function BeatEditor({
   beatId,
   allBeatIds,
   roomIds,
+  musicTracks,
   isStart,
   onSetStart,
   onChange,
@@ -339,6 +451,7 @@ function BeatEditor({
   beatId: string;
   allBeatIds: string[];
   roomIds: string[];
+  musicTracks: string[];
   isStart: boolean;
   onSetStart: () => void;
   onChange: (patch: Partial<Beat>) => void;
@@ -372,6 +485,12 @@ function BeatEditor({
           </ToolBtn>
         </div>
       </div>
+
+      <MusicSelect
+        beat={beat}
+        tracks={musicTracks}
+        onChange={(music) => onChange({ music } as Partial<Beat>)}
+      />
 
       {beat.kind === "scroll" ? (
         <ScrollBeatForm
@@ -596,6 +715,146 @@ function CinematicBeatForm({
   );
 }
 
+function MusicSelect({
+  beat,
+  tracks,
+  onChange,
+}: {
+  beat: Beat;
+  tracks: string[];
+  onChange: (music: string | undefined) => void;
+}) {
+  const value = beatMusicSelectValue(beat);
+  const [previewing, setPreviewing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const valueRef = useRef(value);
+
+  useEffect(() => {
+    if (valueRef.current === value) return;
+    valueRef.current = value;
+    setPreviewing(false);
+    stopMidi();
+  }, [value]);
+
+  useEffect(() => {
+    return () => stopMidi();
+  }, []);
+
+  const playPreview = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!value || busy) return;
+    setBusy(true);
+    try {
+      resumeMidiContext();
+      const vol = useGameStore.getState().musicVolume;
+      useGameStore.getState().setMuted(false);
+      setMidiGain(vol > 0 ? vol : 0.6);
+      const src = encodeURI(midiMusicSrc(value));
+      if (getPlayingMidiSrc() === src && isMidiPaused()) {
+        resumeMidi();
+      } else {
+        await playMidiUrl(src, true);
+      }
+      setPreviewing(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const pausePreview = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    pauseMidi();
+    setPreviewing(false);
+  };
+
+  return (
+    <div>
+      <span className="font-mono text-[10px] tracking-wide text-amber-100/50 uppercase">
+        Music (.mid)
+      </span>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <select
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value;
+            onChange(v === "" ? undefined : v);
+          }}
+          className="min-w-0 flex-1 rounded border border-amber-200/20 bg-black/40 px-2 py-1.5 font-mono text-sm"
+        >
+          <option value="">None (silence)</option>
+          {tracks.map((file) => (
+            <option key={file} value={file}>
+              {file}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          disabled={!value || busy}
+          aria-label={previewing ? "Pause preview" : "Play preview"}
+          title={previewing ? "Pause" : "Play"}
+          onClick={(e) => {
+            if (previewing) pausePreview(e);
+            else void playPreview(e);
+          }}
+          className={`flex size-9 shrink-0 items-center justify-center rounded border transition ${
+            !value || busy
+              ? "cursor-not-allowed border-amber-200/10 text-amber-100/30"
+              : previewing
+                ? "border-amber-300/50 bg-amber-200/15 text-amber-50 hover:bg-amber-200/25"
+                : "border-amber-200/20 text-amber-100/80 hover:border-amber-200/40 hover:text-amber-50"
+          }`}
+        >
+          {previewing ? (
+            <span aria-hidden className="flex items-center gap-[3px]">
+              <span className="h-3.5 w-[3px] rounded-sm bg-current" />
+              <span className="h-3.5 w-[3px] rounded-sm bg-current" />
+            </span>
+          ) : (
+            <span
+              aria-hidden
+              className="ml-0.5 h-0 w-0 border-y-[6px] border-l-[10px] border-y-transparent border-l-current"
+            />
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function LeavePrompt({
+  onSave,
+  onDiscard,
+  onCancel,
+}: {
+  onSave: () => void;
+  onDiscard: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+      <div className="w-full max-w-md rounded border border-amber-200/25 bg-[#14100c] p-6 shadow-xl">
+        <h2 className="font-display text-xl tracking-wide text-amber-50">
+          Save changes?
+        </h2>
+        <p className="mt-3 font-mono text-sm leading-relaxed text-amber-100/70">
+          You have unsaved changes. Download your level JSON before leaving, or
+          discard them.
+        </p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <ToolBtn accent onClick={onSave}>
+            Download & leave
+          </ToolBtn>
+          <ToolBtn onClick={onDiscard}>Discard</ToolBtn>
+          <ToolBtn onClick={onCancel}>Cancel</ToolBtn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function NextSelect({
   label = "Next beat",
   value,
@@ -647,22 +906,27 @@ function ToolBtn({
   onClick,
   accent = false,
   small = false,
+  disabled = false,
 }: {
   children: React.ReactNode;
   onClick: () => void;
   accent?: boolean;
   small?: boolean;
+  disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={`font-display rounded border tracking-wide transition ${
         small ? "px-2 py-0.5 text-[11px]" : "px-3 py-1 text-sm"
       } ${
-        accent
-          ? "border-amber-300/50 bg-amber-200/15 text-amber-50 hover:bg-amber-200/25"
-          : "border-amber-200/20 text-amber-100/80 hover:border-amber-200/40 hover:text-amber-50"
+        disabled
+          ? "cursor-not-allowed border-amber-200/10 text-amber-100/30"
+          : accent
+            ? "border-amber-300/50 bg-amber-200/15 text-amber-50 hover:bg-amber-200/25"
+            : "border-amber-200/20 text-amber-100/80 hover:border-amber-200/40 hover:text-amber-50"
       }`}
     >
       {children}

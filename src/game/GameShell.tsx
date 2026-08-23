@@ -31,7 +31,7 @@ function ScreenView({ screen }: { screen: AppScreen }) {
       return <LevelEditor />;
     case "play":
       return <LevelPlayApp />;
-    case "gym":
+    case "roomPlaytest":
       return <GameApp mode="practice" />;
     default: {
       const _unhandled: never = screen;
@@ -44,7 +44,7 @@ export function GameShell() {
   const screen = useGameStore((s) => s.screen);
 
   useEffect(() => {
-    if (screen !== "play" && screen !== "gym") {
+    if (screen !== "play" && screen !== "roomPlaytest") {
       void exitPlayViewport();
     }
   }, [screen]);
@@ -62,14 +62,8 @@ export function GameShell() {
         state.setScreen(ret ?? "menu");
         return;
       }
-      if (current === "levelEditor") {
-        e.preventDefault();
-        state.setPlaytestFromLevelEditor(false);
-        state.setScreen("menu");
-        return;
-      }
       if (
-        (current === "play" || current === "gym") &&
+        (current === "play" || current === "roomPlaytest") &&
         state.playtestFromBuilder
       ) {
         e.preventDefault();
@@ -83,7 +77,7 @@ export function GameShell() {
       }
       if (
         current === "play" ||
-        current === "gym" ||
+        current === "roomPlaytest" ||
         current === "scoreboard" ||
         current === "config" ||
         current === "credits"

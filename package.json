@@ -6,8 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "level:gym": "node scripts/generate-gym.cjs"
+    "lint": "eslint"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",

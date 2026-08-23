@@ -130,7 +130,7 @@ export function parseTiledJson(text: string, id = "draft"): Level {
 }
 
 export function downloadName(id: string): string {
-  if (id === "gym" || id.startsWith("gym")) return "gym.json";
+  if (id === "gate" || id.startsWith("level")) return `${id}.json`;
   return "draft.json";
 }
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMobile } from "@/hooks/useMobile";
 import { enterPlayViewport } from "../playViewport";
-import { fetchLevelMap } from "../queries";
+import { fetchRoomMap } from "../queries";
 import { useGameStore } from "../store";
 import type { Level, TileId } from "../types";
 import { tiledToLevel } from "../world/loadLevel";
@@ -173,14 +173,14 @@ export function RoomEditor() {
     setStatus("New 64×24 map");
   }, [commit, pushUndo]);
 
-  const loadGym = useCallback(async () => {
+  const loadLevel1 = useCallback(async () => {
     try {
-      const map = await fetchLevelMap("gym");
+      const map = await fetchRoomMap("level-1", "gate");
       pushUndo(docRef.current);
-      commit(tiledToLevel("gym", map));
-      setStatus("Loaded gym");
+      commit(tiledToLevel("gate", map));
+      setStatus("Loaded level 1 gate");
     } catch {
-      setStatus("Failed to load gym");
+      setStatus("Failed to load level 1");
     }
   }, [commit, pushUndo]);
 
@@ -305,7 +305,7 @@ export function RoomEditor() {
           />
         </label>
         <ToolBtn onClick={newMap}>New</ToolBtn>
-        <ToolBtn onClick={() => void loadGym()}>Load gym</ToolBtn>
+        <ToolBtn onClick={() => void loadLevel1()}>Load level 1</ToolBtn>
         <ToolBtn onClick={() => fileRef.current?.click()}>Import</ToolBtn>
         <ToolBtn onClick={() => saveLevelDownload(doc)}>Download</ToolBtn>
         <ToolBtn onClick={playtest} accent>

@@ -6,7 +6,7 @@ import { InputController } from "../input";
 import { createWorld, snapshotDebug, stepWorld } from "../player/fsm";
 import type { Level, World } from "../types";
 import { useGameStore } from "../store";
-import { drawBackdrop, drawLevel, type Camera2D } from "./LevelView";
+import { drawBackdrop, drawExits, drawLevel, type Camera2D } from "./LevelView";
 import { drawBats, drawPlayer, drawProjectiles } from "./PlayerView";
 import { playSfx } from "../audio/sfx";
 import type { SpriteManifest } from "../queries";
@@ -22,6 +22,16 @@ const EMPTY_INPUT = {
   jumpPressed: false,
   resetPressed: false,
   usePressed: false,
+};
+
+const EXIT_PAUSE_SEC = 1;
+const EXIT_FADE_SEC = 0.8;
+
+type ExitSequence = {
+  exitId: string;
+  spawn?: { x: number; y: number };
+  elapsed: number;
+  phase: "pause" | "fade";
 };
 
 function damp(current: number, target: number, lambda: number, dt: number) {
@@ -59,6 +69,8 @@ export function GameCanvas({
   const cameraOverrideRef = useRef(cameraOverride);
   const sheetRef = useRef<HTMLImageElement | null>(null);
   const spritesRef = useRef(sprites);
+  const exitSeqRef = useRef<ExitSequence | null>(null);
+  const playerAlphaRef = useRef(1);
 
   useEffect(() => {
     onExitRef.current = onExit;
@@ -82,6 +94,8 @@ export function GameCanvas({
     camRef.current = { x: level.spawn.x, y: level.spawn.y + 2 };
     worldRef.current = null;
     accRef.current = 0;
+    exitSeqRef.current = null;
+    playerAlphaRef.current = 1;
   }, [level]);
 
   useEffect(() => {
@@ -118,9 +132,11 @@ export function GameCanvas({
         worldRef.current = createWorld(level, kinematics);
       }
       const world = worldRef.current;
+      const exitSeq = exitSeqRef.current;
+      const simPaused = paused || exitSeq != null;
 
-      accRef.current = consumeFixedSteps(accRef.current, rawDt, paused, () => {
-        if (inputDisabledRef.current) return;
+      accRef.current = consumeFixedSteps(accRef.current, rawDt, simPaused, () => {
+        if (inputDisabledRef.current || exitSeqRef.current) return;
         input.beginFrame();
         const frame = input.frame;
         const { inventory, selectedSlot } = useGameStore.getState();
@@ -133,13 +149,41 @@ export function GameCanvas({
           kinematics.bodyWidth,
           world.player.height,
         );
-        if (exit && onExitRef.current) {
-          onExitRef.current(exit.id, exit.spawn);
+        if (exit && onExitRef.current && !exitSeqRef.current) {
+          exitSeqRef.current = {
+            exitId: exit.id,
+            spawn: exit.spawn,
+            elapsed: 0,
+            phase: "pause",
+          };
         }
       });
 
+      if (exitSeq) {
+        exitSeq.elapsed += rawDt;
+        if (exitSeq.phase === "pause") {
+          playerAlphaRef.current = 1;
+          if (exitSeq.elapsed >= EXIT_PAUSE_SEC) {
+            exitSeq.phase = "fade";
+            exitSeq.elapsed = 0;
+          }
+        } else {
+          playerAlphaRef.current = Math.max(
+            0,
+            1 - exitSeq.elapsed / EXIT_FADE_SEC,
+          );
+          if (exitSeq.elapsed >= EXIT_FADE_SEC) {
+            const { exitId, spawn } = exitSeq;
+            exitSeqRef.current = null;
+            playerAlphaRef.current = 1;
+            onExitRef.current?.(exitId, spawn);
+          }
+        }
+      }
+
       const p = world.player;
-      const frameInput = inputDisabledRef.current ? EMPTY_INPUT : input.frame;
+      const frameInput =
+        inputDisabledRef.current || exitSeq ? EMPTY_INPUT : input.frame;
       const sprinting =
         !paused &&
         !inputDisabledRef.current &&
@@ -189,6 +233,7 @@ export function GameCanvas({
       ctx.imageSmoothingEnabled = false;
       drawBackdrop(ctx, cam, level);
       drawLevel(ctx, cam, level);
+      drawExits(ctx, cam, level);
       drawBats(ctx, cam, world);
       drawPlayer(
         ctx,
@@ -198,6 +243,7 @@ export function GameCanvas({
         kinematics.bodyWidth,
         spritesRef.current,
         sheetRef.current,
+        playerAlphaRef.current,
       );
       drawProjectiles(ctx, cam, world);
 

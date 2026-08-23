@@ -197,15 +197,31 @@ export function TileCanvas({
     for (const exit of lv.exits ?? []) {
       const ex = ox + exit.x * px;
       const ey = oy + (lv.height - exit.y - exit.height) * px;
-      ctx.fillStyle = "rgba(61, 139, 110, 0.45)";
-      ctx.fillRect(ex, ey, exit.width * px, exit.height * px);
-      ctx.strokeStyle = "rgba(61, 139, 110, 0.9)";
+      const ew = exit.width * px;
+      const eh = exit.height * px;
+      const pillar = Math.max(2, ew * 0.18);
+      const lintel = Math.max(3, eh * 0.14);
+
+      ctx.fillStyle = "rgba(8, 4, 12, 0.7)";
+      ctx.fillRect(ex + pillar * 0.5, ey + lintel, ew - pillar, eh - lintel);
+
+      ctx.fillStyle = "#5a4638";
+      ctx.fillRect(ex, ey, pillar, eh);
+      ctx.fillRect(ex + ew - pillar, ey, pillar, eh);
+      ctx.fillStyle = "#6b5344";
+      ctx.fillRect(ex, ey, ew, lintel);
+
+      ctx.strokeStyle = "rgba(232, 197, 71, 0.7)";
       ctx.lineWidth = 1;
-      ctx.strokeRect(ex + 0.5, ey + 0.5, exit.width * px - 1, exit.height * px - 1);
+      ctx.beginPath();
+      ctx.moveTo(ex + pillar, ey + lintel);
+      ctx.quadraticCurveTo(ex + ew / 2, ey + lintel * 0.25, ex + ew - pillar, ey + lintel);
+      ctx.stroke();
+
       if (px >= 8) {
-        ctx.fillStyle = "rgba(232, 245, 235, 0.85)";
-        ctx.font = `${Math.max(8, px * 0.45)}px monospace`;
-        ctx.fillText(exit.id.slice(0, 8), ex + 2, ey + px * 0.55);
+        ctx.fillStyle = "rgba(232, 245, 235, 0.9)";
+        ctx.font = `${Math.max(8, px * 0.4)}px monospace`;
+        ctx.fillText(exit.id.slice(0, 10), ex + 2, ey + eh - 3);
       }
     }
 

@@ -6,6 +6,7 @@ import { useMobile } from "@/hooks/useMobile";
 import { LevelDirector } from "./level/Director";
 import type { DirectorState } from "./level/types";
 import type { ScrollBeat } from "./level/types";
+import { musicForBeat } from "./level/types";
 import { InputController } from "./input";
 import { enterPlayViewport, usePortrait } from "./playViewport";
 import {
@@ -31,6 +32,7 @@ export function LevelPlayApp() {
   const playtestRevision = useGameStore((s) => s.playtestRevision);
   const setScreen = useGameStore((s) => s.setScreen);
   const setPlayMode = useGameStore((s) => s.setPlayMode);
+  const setBeatMusicId = useGameStore((s) => s.setBeatMusicId);
   const setPlaytestFromLevelEditor = useGameStore(
     (s) => s.setPlaytestFromLevelEditor,
   );
@@ -89,18 +91,23 @@ export function LevelPlayApp() {
       if (alive) {
         setDirectorState(state);
         setPlayMode(state.playMode);
+        setBeatMusicId(
+          musicForBeat(state.manifest.beats[state.beatId] ?? null),
+        );
       }
     });
     const unsub = director.subscribe((state) => {
       setDirectorState(state);
       setPlayMode(state.playMode);
+      setBeatMusicId(musicForBeat(state.manifest.beats[state.beatId] ?? null));
     });
     return () => {
       alive = false;
       unsub();
       directorRef.current = null;
+      setBeatMusicId(null);
     };
-  }, [manifest, loadRoom, playtestBeatId, playtestRevision, setPlayMode]);
+  }, [manifest, loadRoom, playtestBeatId, playtestRevision, setPlayMode, setBeatMusicId]);
 
   useEffect(() => {
     if (directorState?.playMode !== "cinematic") return;
@@ -118,9 +125,15 @@ export function LevelPlayApp() {
 
   useEffect(() => {
     if (directorState?.playMode !== "complete") return;
-    const t = window.setTimeout(() => setScreen("menu"), 1200);
+    const t = window.setTimeout(() => {
+      if (playtestFromLevelEditor) {
+        setScreen("levelEditor");
+      } else {
+        setScreen("menu");
+      }
+    }, 1200);
     return () => window.clearTimeout(t);
-  }, [directorState?.playMode, setScreen]);
+  }, [directorState?.playMode, playtestFromLevelEditor, setScreen]);
 
   const scrollBeat = useMemo(() => {
     const beat = directorState?.manifest.beats[directorState.beatId];
@@ -157,7 +170,7 @@ export function LevelPlayApp() {
       ) : playMode === "complete" ? (
         <div className="flex h-full items-center justify-center">
           <p className="font-display text-2xl tracking-[0.2em] text-amber-50/90">
-            Level complete
+            {playtestFromLevelEditor ? "Playtest complete" : "Level complete"}
           </p>
         </div>
       ) : playMode === "scroll" && scrollBeat ? (

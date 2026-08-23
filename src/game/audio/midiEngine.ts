@@ -9,6 +9,8 @@ type MidiFilePlayer = {
   loop: (n: boolean | number) => void;
   play: () => void;
   stop: () => void;
+  pause: () => void;
+  resume: () => void;
 };
 
 let boot: Promise<void> | null = null;
@@ -17,6 +19,7 @@ let out: MidiOut | null = null;
 let gain: GainNode | null = null;
 let player: MidiFilePlayer | null = null;
 let playingSrc: string | null = null;
+let paused = false;
 let targetGain = 0.7;
 let disconnectPatched = false;
 
@@ -100,17 +103,44 @@ export function bootMidi(): Promise<void> {
 export async function playMidiUrl(src: string, loop: boolean) {
   await bootMidi();
   if (!jzz || !out) return;
-  if (playingSrc === src && player) return;
+  if (playingSrc === src && player) {
+    if (paused) {
+      resumeMidi();
+    }
+    return;
+  }
   stopMidi();
   const res = await fetch(src);
   if (!res.ok) return;
   const buf = await res.arrayBuffer();
   const smf = new jzz.MIDI.SMF(buf);
-  player = smf.player();
-  player.connect(out);
-  player.loop(loop);
-  player.play();
+  const next = smf.player() as MidiFilePlayer;
+  next.connect(out);
+  next.loop(loop);
+  next.play();
+  player = next;
   playingSrc = src;
+  paused = false;
+}
+
+export function pauseMidi() {
+  if (!player || paused) return;
+  try {
+    player.pause();
+    paused = true;
+  } catch {
+    stopMidi();
+  }
+}
+
+export function resumeMidi() {
+  if (!player || !paused) return;
+  try {
+    player.resume();
+    paused = false;
+  } catch {
+    /* ignore */
+  }
 }
 
 export function stopMidi() {
@@ -122,4 +152,13 @@ export function stopMidi() {
   }
   player = null;
   playingSrc = null;
+  paused = false;
+}
+
+export function getPlayingMidiSrc(): string | null {
+  return playingSrc;
+}
+
+export function isMidiPaused(): boolean {
+  return paused;
 }

@@ -4,8 +4,7 @@
       "id": "menu",
       "src": "/audio/music/Moonspell - Vampiria.mid",
       "loop": true
-    },
-    { "id": "gym", "src": "/audio/music/gym.ogg", "loop": true }
+    }
   ],
   "sfx": [
     { "id": "jump", "src": "/audio/sfx/jump-1.ogg" },

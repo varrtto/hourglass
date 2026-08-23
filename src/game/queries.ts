@@ -23,6 +23,11 @@ export type AudioPlaylist = {
   sfx: Array<{ id: string; src: string; volume?: number }>;
 };
 
+export type MusicCatalog = {
+  /** .mid filenames under /audio/music/ */
+  tracks: string[];
+};
+
 export const queryKeys = {
   level: (id: string) => ["level", id] as const,
   levelManifest: (id: string) => ["levelManifest", id] as const,
@@ -30,6 +35,7 @@ export const queryKeys = {
     ["room", levelId, roomId] as const,
   sprites: (id: string) => ["sprites", id] as const,
   audio: () => ["audio", "playlist"] as const,
+  musicCatalog: () => ["audio", "musicCatalog"] as const,
 };
 
 export async function fetchLevelMap(id: string): Promise<TiledMap> {
@@ -65,4 +71,19 @@ export async function fetchAudioPlaylist(): Promise<AudioPlaylist> {
   const res = await fetch("/audio/playlist.json");
   if (!res.ok) throw new Error("Failed to load audio playlist");
   return res.json() as Promise<AudioPlaylist>;
+}
+
+export async function fetchMusicCatalog(): Promise<MusicCatalog> {
+  const res = await fetch("/audio/music/catalog.json");
+  if (!res.ok) throw new Error("Failed to load music catalog");
+  return res.json() as Promise<MusicCatalog>;
+}
+
+/** Build public URL for a MIDI file in /audio/music. */
+export function midiMusicSrc(filename: string): string {
+  return `/audio/music/${filename.split("/").pop() ?? filename}`;
+}
+
+export function isMidiFilename(name: string): boolean {
+  return /\.midi?$/i.test(name);
 }

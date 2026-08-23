@@ -8,6 +8,8 @@ export type ScrollBeat = {
   text: string[];
   next: string;
   durationSec?: number;
+  /** Playlist MIDI filename under /audio/music, or "" for silence. */
+  music?: string;
 };
 
 export type RoomBeat = {
@@ -18,6 +20,8 @@ export type RoomBeat = {
   onExit?: Record<string, string>;
   /** fallback when no exit zones are defined on the room */
   next?: string;
+  /** MIDI filename under /audio/music, or "" for silence. */
+  music?: string;
 };
 
 export type CinematicStep =
@@ -30,6 +34,8 @@ export type CinematicBeat = {
   id: string;
   script: CinematicStep[];
   next: string;
+  /** MIDI filename under /audio/music, or "" for silence. */
+  music?: string;
 };
 
 export type Beat = ScrollBeat | RoomBeat | CinematicBeat;
@@ -61,4 +67,12 @@ export function beatLabel(beat: Beat): string {
     case "cinematic":
       return `Cinematic · ${beat.script.length} steps`;
   }
+}
+
+/** Resolve MIDI filename for a beat (null = silence). */
+export function musicForBeat(beat: Beat | null | undefined): string | null {
+  if (!beat) return null;
+  if (beat.music === "") return null;
+  if (beat.music) return beat.music;
+  return null;
 }
