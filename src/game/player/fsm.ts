@@ -856,9 +856,26 @@ export function stepWorld(
       break;
     }
     case "dead": {
-      p.vx = 0;
-      p.vy = 0;
-      if (input.jumpPressed) respawn(world, k);
+      p.hang = null;
+      p.climbFrom = null;
+      p.climbTo = null;
+      if (input.jumpPressed) {
+        respawn(world, k);
+        break;
+      }
+      if (!grounded(world, k)) {
+        p.vy += k.fallGravity * dt;
+        if (p.vy < k.maxFall) p.vy = k.maxFall;
+        p.vx *= 0.98;
+        moveAxis(world, k, p.vx * dt, p.vy * dt);
+        if (grounded(world, k)) {
+          p.vx = 0;
+          p.vy = 0;
+        }
+      } else {
+        p.vx = 0;
+        p.vy = 0;
+      }
       break;
     }
   }
@@ -869,6 +886,9 @@ export function stepWorld(
 
   if (aabbHitsSpikes(world.level, p.x, p.y, k.bodyWidth, p.height)) {
     p.hp = 0;
+    p.hang = null;
+    p.climbFrom = null;
+    p.climbTo = null;
     setState(p, "dead");
   }
   resolveBatPlayerContact(world, k);

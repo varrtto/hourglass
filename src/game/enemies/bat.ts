@@ -81,8 +81,9 @@ export function resolveBatPlayerContact(world: World, k: Kinematics) {
       p.hp = 0;
       p.state = "dead";
       p.timer = 0;
-      p.vx = 0;
-      p.vy = 0;
+      p.hang = null;
+      p.climbFrom = null;
+      p.climbTo = null;
       return;
     }
   }
