@@ -106,10 +106,13 @@ export function AudioDirector() {
 
   useEffect(() => {
     let unlocked = false;
-    const onFirstGesture = () => {
+    const unlockAudio = () => {
       resumeMidiContext();
-      if (unlocked) return;
       unlocked = true;
+    };
+    const onFirstPointer = () => {
+      unlockAudio();
+      // Click/tap is an intentional start; keep keyboard nav from unmuting.
       if (useGameStore.getState().muted) {
         useGameStore.getState().setMuted(false);
       }
@@ -117,17 +120,18 @@ export function AudioDirector() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "m") {
         e.preventDefault();
-        resumeMidiContext();
-        unlocked = true;
+        unlockAudio();
         useGameStore.getState().setMuted(!useGameStore.getState().muted);
         return;
       }
-      onFirstGesture();
+      // Unlock Web Audio on any key, but do not unmute — menu arrows/WASD
+      // would otherwise start music on first navigation.
+      if (!unlocked) unlockAudio();
     };
-    window.addEventListener("pointerdown", onFirstGesture);
+    window.addEventListener("pointerdown", onFirstPointer, { once: true });
     window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("pointerdown", onFirstGesture);
+      window.removeEventListener("pointerdown", onFirstPointer);
       window.removeEventListener("keydown", onKey);
     };
   }, []);

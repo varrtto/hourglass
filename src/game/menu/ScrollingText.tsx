@@ -62,7 +62,9 @@ export function ScrollingText({
         <div
           className="absolute right-0 left-0 px-8 sm:px-16"
           style={{
-            top: "100%",
+            /* Sit at the bottom of the opaque mask band so the first lines
+               are visible immediately; the lower 20% stay empty (margin). */
+            top: "80%",
             animation: `hourglass-crawl ${durationSec}s linear forwards`,
           }}
         >

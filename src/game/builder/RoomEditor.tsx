@@ -6,8 +6,9 @@ import { enterPlayViewport } from "../playViewport";
 import { fetchRoomMap } from "../queries";
 import { useGameStore } from "../store";
 import type { Level, TileId } from "../types";
-import { TILE_EMPTY, TILE_LEDGE, TILE_SOLID, TILE_SPIKE } from "../types";
+import { TILE_EMPTY } from "../types";
 import { tiledToLevel } from "../world/loadLevel";
+import { useEditorSessionStore } from "../editor/editorSessionStore";
 import { Palette } from "./Palette";
 import {
   type BuilderTool,
@@ -18,11 +19,21 @@ import {
   saveLevelDownload,
 } from "./serialize";
 import { TileCanvas } from "./TileCanvas";
-import { useEditorSessionStore } from "../editor/editorSessionStore";
-
-const UNDO_CAP = 50;
-const EXIT_WIDTH = 2;
-const EXIT_HEIGHT = 2;
+import { ToolBtn } from "./levelEditorUi";
+import {
+  EXIT_HEIGHT,
+  EXIT_WIDTH,
+  UNDO_CAP,
+  type Snapshot,
+  applySnap,
+  findBatAt,
+  findExitAt,
+  reasonCannotPaintTile,
+  reasonCannotPlaceBat,
+  reasonCannotPlaceExit,
+  reasonCannotPlaceSpawn,
+  snapOf,
+} from "./roomEditorRules";
 
 const TOOL_KEYS: Record<string, BuilderTool> = {
   "1": "empty",
@@ -33,153 +44,6 @@ const TOOL_KEYS: Record<string, BuilderTool> = {
   "6": "bat",
   "7": "exit",
 };
-
-type Snapshot = Pick<Level, "width" | "height" | "tiles" | "spawn" | "bats" | "exits">;
-
-function snapOf(level: Level): Snapshot {
-  return {
-    width: level.width,
-    height: level.height,
-    tiles: [...level.tiles],
-    spawn: { ...level.spawn },
-    bats: (level.bats ?? []).map((b) => ({ ...b })),
-    exits: (level.exits ?? []).map((e) => ({ ...e })),
-  };
-}
-
-function applySnap(id: string, snap: Snapshot): Level {
-  return {
-    id,
-    width: snap.width,
-    height: snap.height,
-    tiles: [...snap.tiles],
-    spawn: { ...snap.spawn },
-    bats: snap.bats.map((b) => ({ ...b })),
-    exits: (snap.exits ?? []).map((e) => ({ ...e })),
-  };
-}
-
-function findBatAt(level: Level, tx: number, ty: number): number {
-  return (level.bats ?? []).findIndex(
-    (b) => Math.floor(b.x) === tx && Math.floor(b.y) === ty,
-  );
-}
-
-function findExitAt(level: Level, tx: number, ty: number): number {
-  return (level.exits ?? []).findIndex(
-    (e) =>
-      tx >= e.x &&
-      tx < e.x + e.width &&
-      ty >= e.y &&
-      ty < e.y + e.height,
-  );
-}
-
-function spawnTile(level: Level): { x: number; y: number } {
-  return { x: Math.floor(level.spawn.x), y: Math.floor(level.spawn.y) };
-}
-
-function tileAt(level: Level, tx: number, ty: number): TileId {
-  if (tx < 0 || ty < 0 || tx >= level.width || ty >= level.height) {
-    return TILE_SOLID;
-  }
-  return level.tiles[ty * level.width + tx] as TileId;
-}
-
-/** Non-air tiles that block entities / doors. */
-function isBlockedTile(tile: TileId): boolean {
-  return tile === TILE_SOLID || tile === TILE_SPIKE || tile === TILE_LEDGE;
-}
-
-function exitOverlapsRect(
-  level: Level,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  ignoreIndex = -1,
-): boolean {
-  return (level.exits ?? []).some((e, i) => {
-    if (i === ignoreIndex) return false;
-    return x < e.x + e.width && x + w > e.x && y < e.y + e.height && y + h > e.y;
-  });
-}
-
-function batInRect(level: Level, x: number, y: number, w: number, h: number): boolean {
-  return (level.bats ?? []).some((b) => {
-    const bx = Math.floor(b.x);
-    const by = Math.floor(b.y);
-    return bx >= x && bx < x + w && by >= y && by < y + h;
-  });
-}
-
-function spawnInRect(level: Level, x: number, y: number, w: number, h: number): boolean {
-  const s = spawnTile(level);
-  return s.x >= x && s.x < x + w && s.y >= y && s.y < y + h;
-}
-
-function tilesClearInRect(
-  level: Level,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-): boolean {
-  for (let ty = y; ty < y + h; ty++) {
-    for (let tx = x; tx < x + w; tx++) {
-      if (isBlockedTile(tileAt(level, tx, ty))) return false;
-    }
-  }
-  return true;
-}
-
-function cellHasEntity(level: Level, tx: number, ty: number): string | null {
-  if (findBatAt(level, tx, ty) >= 0) return "bat";
-  if (findExitAt(level, tx, ty) >= 0) return "exit";
-  const s = spawnTile(level);
-  if (s.x === tx && s.y === ty) return "spawn";
-  return null;
-}
-
-function reasonCannotPlaceBat(level: Level, tx: number, ty: number): string | null {
-  if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place bat on a tile";
-  if (findExitAt(level, tx, ty) >= 0) return "Can't place bat on an exit";
-  const s = spawnTile(level);
-  if (s.x === tx && s.y === ty) return "Can't place bat on spawn";
-  return null;
-}
-
-function reasonCannotPlaceExit(
-  level: Level,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-): string | null {
-  if (x < 0 || y < 0 || x + w > level.width || y + h > level.height) {
-    return "Exit doesn't fit on the map";
-  }
-  if (!tilesClearInRect(level, x, y, w, h)) {
-    return "Can't place exit over tiles";
-  }
-  if (batInRect(level, x, y, w, h)) return "Can't place exit over a bat";
-  if (spawnInRect(level, x, y, w, h)) return "Can't place exit over spawn";
-  if (exitOverlapsRect(level, x, y, w, h)) return "Can't overlap another exit";
-  return null;
-}
-
-function reasonCannotPlaceSpawn(level: Level, tx: number, ty: number): string | null {
-  if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place spawn on a tile";
-  if (findBatAt(level, tx, ty) >= 0) return "Can't place spawn on a bat";
-  if (findExitAt(level, tx, ty) >= 0) return "Can't place spawn on an exit";
-  return null;
-}
-
-function reasonCannotPaintTile(level: Level, tx: number, ty: number): string | null {
-  const entity = cellHasEntity(level, tx, ty);
-  if (entity) return `Can't paint over ${entity}`;
-  return null;
-}
 
 export function RoomEditor() {
   const startPlaytest = useGameStore((s) => s.startPlaytest);
@@ -614,29 +478,5 @@ export function RoomEditor() {
         </span>
       </footer>
     </div>
-  );
-}
-
-function ToolBtn({
-  children,
-  onClick,
-  accent = false,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  accent?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`font-display rounded border px-3 py-1 text-sm tracking-wide transition ${
-        accent
-          ? "border-amber-300/50 bg-amber-200/15 text-amber-50 hover:bg-amber-200/25"
-          : "border-amber-200/20 text-amber-100/80 hover:border-amber-200/40 hover:text-amber-50"
-      }`}
-    >
-      {children}
-    </button>
   );
 }

@@ -31,7 +31,9 @@ body {
     transform: translateY(0);
   }
   to {
-    transform: translateY(calc(-100% - 100dvh));
+    /* Start sits at 80% (above the bottom mask margin); travel content
+       height plus that remaining viewport so it clears the top fade. */
+    transform: translateY(calc(-100% - 80dvh));
   }
 }
 
