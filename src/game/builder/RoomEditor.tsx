@@ -26,9 +26,10 @@ const TOOL_KEYS: Record<string, BuilderTool> = {
   "4": "spike",
   "5": "spawn",
   "6": "bat",
+  "7": "exit",
 };
 
-type Snapshot = Pick<Level, "width" | "height" | "tiles" | "spawn" | "bats">;
+type Snapshot = Pick<Level, "width" | "height" | "tiles" | "spawn" | "bats" | "exits">;
 
 function snapOf(level: Level): Snapshot {
   return {
@@ -37,6 +38,7 @@ function snapOf(level: Level): Snapshot {
     tiles: [...level.tiles],
     spawn: { ...level.spawn },
     bats: (level.bats ?? []).map((b) => ({ ...b })),
+    exits: (level.exits ?? []).map((e) => ({ ...e })),
   };
 }
 
@@ -48,14 +50,17 @@ function applySnap(id: string, snap: Snapshot): Level {
     tiles: [...snap.tiles],
     spawn: { ...snap.spawn },
     bats: snap.bats.map((b) => ({ ...b })),
+    exits: (snap.exits ?? []).map((e) => ({ ...e })),
   };
 }
 
-export function MapBuilder() {
+export function RoomEditor() {
   const startPlaytest = useGameStore((s) => s.startPlaytest);
   const setDraftLevel = useGameStore((s) => s.setDraftLevel);
+  const builderReturnScreen = useGameStore((s) => s.builderReturnScreen);
   const storyHeight = useGameStore((s) => s.kinematics.storyHeight);
   const mobile = useMobile();
+  const [exitIdField, setExitIdField] = useState("finish");
   const [doc, setDoc] = useState<Level>(() => {
     const draft = useGameStore.getState().draftLevel;
     return draft ? cloneLevel(draft) : createBlankLevel();
@@ -73,7 +78,16 @@ export function MapBuilder() {
 
   useEffect(() => {
     return () => {
-      useGameStore.getState().setDraftLevel(cloneLevel(docRef.current));
+      const room = cloneLevel(docRef.current);
+      const state = useGameStore.getState();
+      state.setDraftLevel(room);
+      const manifest = state.draftManifest;
+      if (manifest && room.id) {
+        state.setDraftManifest({
+          ...manifest,
+          rooms: { ...(manifest.rooms ?? {}), [room.id]: room },
+        });
+      }
     };
   }, []);
 
@@ -199,6 +213,34 @@ export function MapBuilder() {
     setStatus(`Resized to ${next.width}×${next.height}`);
   }, [commit, heightField, pushUndo, widthField]);
 
+  const placeExit = useCallback(
+    (tx: number, ty: number) => {
+      const cur = docRef.current;
+      const exitId = exitIdField.trim() || "exit";
+      const existing = (cur.exits ?? []).findIndex(
+        (e) =>
+          tx >= e.x &&
+          tx < e.x + e.width &&
+          ty >= e.y &&
+          ty < e.y + e.height,
+      );
+      pushUndo(cur);
+      if (existing >= 0) {
+        const exits = (cur.exits ?? []).filter((_, i) => i !== existing);
+        commit({ ...cur, exits });
+        return;
+      }
+      commit({
+        ...cur,
+        exits: [
+          ...(cur.exits ?? []),
+          { id: exitId, x: tx, y: ty, width: 1, height: 1 },
+        ],
+      });
+    },
+    [commit, exitIdField, pushUndo],
+  );
+
   const playtest = useCallback(() => {
     void enterPlayViewport();
     startPlaytest(cloneLevel(docRef.current));
@@ -251,9 +293,17 @@ export function MapBuilder() {
             Orpheus&apos; Descent
           </p>
           <h1 className="font-display text-xl tracking-[0.14em] text-amber-50">
-            MAP BUILDER
+            ROOM EDITOR
           </h1>
         </div>
+        <label className="flex items-center gap-1 font-mono text-[11px] text-amber-100/70">
+          Exit id
+          <input
+            value={exitIdField}
+            onChange={(e) => setExitIdField(e.target.value)}
+            className="w-20 rounded border border-amber-200/20 bg-black/40 px-1 py-0.5 text-amber-50"
+          />
+        </label>
         <ToolBtn onClick={newMap}>New</ToolBtn>
         <ToolBtn onClick={() => void loadGym()}>Load gym</ToolBtn>
         <ToolBtn onClick={() => fileRef.current?.click()}>Import</ToolBtn>
@@ -294,13 +344,23 @@ export function MapBuilder() {
         <button
           type="button"
           onClick={() => {
-            setDraftLevel(cloneLevel(doc));
-            useGameStore.getState().setPlaytestFromBuilder(false);
-            useGameStore.getState().setScreen("menu");
+            const room = cloneLevel(doc);
+            const state = useGameStore.getState();
+            state.setDraftLevel(room);
+            const manifest = state.draftManifest;
+            if (manifest && room.id) {
+              state.setDraftManifest({
+                ...manifest,
+                rooms: { ...(manifest.rooms ?? {}), [room.id]: room },
+              });
+            }
+            state.setPlaytestFromBuilder(false);
+            state.setScreen(state.builderReturnScreen ?? "menu");
+            state.setBuilderReturnScreen(null);
           }}
           className="font-display ml-auto text-sm tracking-wide text-amber-200/75 transition hover:text-amber-50"
         >
-          ▸ Menu
+          ▸ {builderReturnScreen === "levelEditor" ? "Adventure" : "Menu"}
         </button>
         <input
           ref={fileRef}
@@ -324,6 +384,7 @@ export function MapBuilder() {
           onPaint={paint}
           onPlaceSpawn={placeSpawn}
           onPlaceBat={placeBat}
+          onPlaceExit={placeExit}
           onHover={setHover}
         />
       </div>
@@ -341,7 +402,7 @@ export function MapBuilder() {
         <span className="ml-auto">
           {mobile
             ? "Tap tools · drag paint · pinch zoom · Menu to leave"
-            : "1–6 tools · drag paint · space/middle pan · wheel zoom · ⌘Z undo · Esc menu"}
+            : "1–7 tools · drag paint · space/middle pan · wheel zoom · ⌘Z undo · Esc back"}
         </span>
       </footer>
     </div>

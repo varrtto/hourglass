@@ -10,6 +10,19 @@ import { drawBackdrop, drawLevel, type Camera2D } from "./LevelView";
 import { drawBats, drawPlayer, drawProjectiles } from "./PlayerView";
 import { playSfx } from "../audio/sfx";
 import type { SpriteManifest } from "../queries";
+import { findExitTrigger } from "../world/loadLevel";
+
+const EMPTY_INPUT = {
+  left: false,
+  right: false,
+  up: false,
+  down: false,
+  jump: false,
+  run: false,
+  jumpPressed: false,
+  resetPressed: false,
+  usePressed: false,
+};
 
 function damp(current: number, target: number, lambda: number, dt: number) {
   return current + (target - current) * (1 - Math.exp(-lambda * dt));
@@ -23,10 +36,16 @@ export function GameCanvas({
   level,
   input,
   sprites = null,
+  inputDisabled = false,
+  cameraOverride = null,
+  onExit,
 }: {
   level: Level;
   input: InputController;
   sprites?: SpriteManifest | null;
+  inputDisabled?: boolean;
+  cameraOverride?: { x: number; y: number } | null;
+  onExit?: (exitId: string, spawn?: { x: number; y: number }) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const worldRef = useRef<World | null>(null);
@@ -35,8 +54,17 @@ export function GameCanvas({
   const debugAcc = useRef(0);
   const wasSprinting = useRef(false);
   const wasJumping = useRef(false);
+  const onExitRef = useRef(onExit);
+  const inputDisabledRef = useRef(inputDisabled);
+  const cameraOverrideRef = useRef(cameraOverride);
   const sheetRef = useRef<HTMLImageElement | null>(null);
   const spritesRef = useRef(sprites);
+
+  useEffect(() => {
+    onExitRef.current = onExit;
+    inputDisabledRef.current = inputDisabled;
+    cameraOverrideRef.current = cameraOverride;
+  }, [onExit, inputDisabled, cameraOverride]);
 
   useEffect(() => {
     spritesRef.current = sprites;
@@ -92,16 +120,30 @@ export function GameCanvas({
       const world = worldRef.current;
 
       accRef.current = consumeFixedSteps(accRef.current, rawDt, paused, () => {
+        if (inputDisabledRef.current) return;
         input.beginFrame();
+        const frame = input.frame;
         const { inventory, selectedSlot } = useGameStore.getState();
         const selected = inventory[selectedSlot] ?? null;
-        stepWorld(world, input.frame, kinematics, FIXED_DT, selected);
+        stepWorld(world, frame, kinematics, FIXED_DT, selected);
+        const exit = findExitTrigger(
+          level,
+          world.player.x,
+          world.player.y,
+          kinematics.bodyWidth,
+          world.player.height,
+        );
+        if (exit && onExitRef.current) {
+          onExitRef.current(exit.id, exit.spawn);
+        }
       });
 
       const p = world.player;
+      const frameInput = inputDisabledRef.current ? EMPTY_INPUT : input.frame;
       const sprinting =
         !paused &&
-        input.frame.run &&
+        !inputDisabledRef.current &&
+        frameInput.run &&
         (p.state === "run" || p.state === "runJump");
       if (sprinting && !wasSprinting.current) playSfx("breathing");
       wasSprinting.current = sprinting;
@@ -112,7 +154,7 @@ export function GameCanvas({
       debugAcc.current += rawDt;
       if (debugAcc.current >= 0.08) {
         debugAcc.current = 0;
-        store.setDebug(snapshotDebug(world, input.frame, kinematics));
+        store.setDebug(snapshotDebug(world, frameInput, kinematics));
       }
 
       const ppt = Math.max(10, Math.floor(cssH / 12));
@@ -120,12 +162,17 @@ export function GameCanvas({
       const viewW = cssW / ppt;
       const halfW = viewW / 2;
       const halfH = viewH / 2;
-      const targetX = clamp(p.x, halfW, Math.max(halfW, level.width - halfW));
-      const targetY = clamp(
-        p.y + 1.1,
-        halfH,
-        Math.max(halfH, level.height - halfH),
-      );
+      const override = cameraOverrideRef.current;
+      const targetX = override
+        ? override.x
+        : clamp(p.x, halfW, Math.max(halfW, level.width - halfW));
+      const targetY = override
+        ? override.y
+        : clamp(
+            p.y + 1.1,
+            halfH,
+            Math.max(halfH, level.height - halfH),
+          );
       camRef.current.x = damp(camRef.current.x, targetX, 6, rawDt);
       camRef.current.y = damp(camRef.current.y, targetY, 6, rawDt);
 

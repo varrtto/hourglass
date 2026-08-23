@@ -6,10 +6,10 @@ import { enterPlayViewport } from "../playViewport";
 import { type AppScreen, useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
 
-const ITEMS: { screen: AppScreen; label: string }[] = [
-  { screen: "play", label: "Start new game" },
+const ITEMS: { screen: AppScreen; label: string; action?: "newGame" }[] = [
+  { screen: "play", label: "Start new game", action: "newGame" },
   { screen: "gym", label: "Practice Gym" },
-  { screen: "builder", label: "Map Builder" },
+  { screen: "levelEditor", label: "Create your adventure" },
   { screen: "scoreboard", label: "Scoreboard" },
   { screen: "config", label: "Config" },
   { screen: "credits", label: "Credits" },
@@ -26,8 +26,14 @@ export function MainMenu() {
     (index: number) => {
       const item = ITEMS[index];
       if (!item) return;
-      if (item.screen === "play" || item.screen === "gym") {
+      if (item.action === "newGame") {
+        useGameStore.getState().startNewGame("gym");
+        void enterPlayViewport();
+        return;
+      }
+      if (item.screen === "gym") {
         useGameStore.getState().setPlaytestFromBuilder(false);
+        useGameStore.getState().setPlaytestFromLevelEditor(false);
         void enterPlayViewport();
       }
       setScreen(item.screen);

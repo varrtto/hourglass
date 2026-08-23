@@ -17,10 +17,12 @@ export function ScrollingText({
   children,
   durationSec = 48,
   onSkip,
+  onComplete,
 }: {
   children: React.ReactNode;
   durationSec?: number;
   onSkip?: () => void;
+  onComplete?: () => void;
 }) {
   const mobile = useMobile();
   const reduceMotion = useSyncExternalStore(
@@ -30,16 +32,22 @@ export function ScrollingText({
   );
 
   useEffect(() => {
-    if (!onSkip) return;
+    if (!onSkip && !onComplete) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" || e.key === "Enter" || e.key === "Backspace") {
         e.preventDefault();
-        onSkip();
+        onSkip?.();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onSkip]);
+  }, [onSkip, onComplete]);
+
+  useEffect(() => {
+    if (!onComplete || reduceMotion) return;
+    const t = window.setTimeout(onComplete, durationSec * 1000);
+    return () => window.clearTimeout(t);
+  }, [onComplete, durationSec, reduceMotion]);
 
   return (
     <div

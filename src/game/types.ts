@@ -71,6 +71,17 @@ export type BatSpawn = {
   y: number;
 };
 
+/** Trigger zone that advances the level director to another beat. */
+export type ExitZone = {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Optional spawn override in the target room (tile-center x, floor y). */
+  spawn?: { x: number; y: number };
+};
+
 export type Level = {
   id: string;
   width: number;
@@ -78,6 +89,7 @@ export type Level = {
   tiles: TileId[];
   spawn: { x: number; y: number };
   bats: BatSpawn[];
+  exits?: ExitZone[];
 };
 
 /** Live bat instance during play. */

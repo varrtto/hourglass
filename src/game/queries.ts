@@ -1,4 +1,5 @@
 import type { TiledMap } from "./world/loadLevel";
+import type { LevelManifest } from "./level/types";
 
 export type SpriteTag = {
   from?: number;
@@ -24,13 +25,33 @@ export type AudioPlaylist = {
 
 export const queryKeys = {
   level: (id: string) => ["level", id] as const,
+  levelManifest: (id: string) => ["levelManifest", id] as const,
+  room: (levelId: string, roomId: string) =>
+    ["room", levelId, roomId] as const,
   sprites: (id: string) => ["sprites", id] as const,
   audio: () => ["audio", "playlist"] as const,
 };
 
 export async function fetchLevelMap(id: string): Promise<TiledMap> {
-  const res = await fetch(`/levels/${id}.json`);
-  if (!res.ok) throw new Error(`Failed to load level ${id}`);
+  const nested = await fetch(`/levels/${id}/rooms/${id}.json`);
+  if (nested.ok) return nested.json() as Promise<TiledMap>;
+  const flat = await fetch(`/levels/${id}.json`);
+  if (!flat.ok) throw new Error(`Failed to load level ${id}`);
+  return flat.json() as Promise<TiledMap>;
+}
+
+export async function fetchLevelManifest(id: string): Promise<LevelManifest> {
+  const res = await fetch(`/levels/${id}/level.json`);
+  if (!res.ok) throw new Error(`Failed to load level manifest ${id}`);
+  return res.json() as Promise<LevelManifest>;
+}
+
+export async function fetchRoomMap(
+  levelId: string,
+  roomId: string,
+): Promise<TiledMap> {
+  const res = await fetch(`/levels/${levelId}/rooms/${roomId}.json`);
+  if (!res.ok) throw new Error(`Failed to load room ${levelId}/${roomId}`);
   return res.json() as Promise<TiledMap>;
 }
 

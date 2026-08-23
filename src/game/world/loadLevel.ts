@@ -4,6 +4,7 @@ import {
   TILE_SOLID,
   TILE_SPIKE,
   type BatSpawn,
+  type ExitZone,
   type Level,
   type TileId,
 } from "../types";
@@ -109,15 +110,33 @@ export function tiledToLevel(id: string, map: TiledMap): Level {
       y: height - tiledTileY,
     };
   }
+  const exits: ExitZone[] = [];
   for (const obj of objects ?? []) {
-    if (obj.name !== "bat" && obj.type !== "bat") continue;
-    bats.push({
-      x: obj.x / tw + 0.5,
-      y: height - obj.y / th,
-    });
+    if (obj.name === "bat" || obj.type === "bat") {
+      bats.push({
+        x: obj.x / tw + 0.5,
+        y: height - obj.y / th,
+      });
+      continue;
+    }
+    if (obj.type === "exit" || obj.name === "exit") {
+      const ew = (obj.width ?? tw) / tw;
+      const eh = (obj.height ?? th) / th;
+      const exitId =
+        obj.name && obj.name !== "exit"
+          ? obj.name
+          : `exit-${obj.id ?? exits.length}`;
+      exits.push({
+        id: exitId,
+        x: obj.x / tw,
+        y: height - (obj.y + (obj.height ?? th)) / th,
+        width: ew,
+        height: eh,
+      });
+    }
   }
 
-  return { id, width, height, tiles, spawn, bats };
+  return { id, width, height, tiles, spawn, bats, exits };
 }
 
 /** Inverse of `tiledToLevel`: runtime y-up tiles → Tiled y-down JSON. */
@@ -203,8 +222,39 @@ export function levelToTiled(level: Level): TiledMap {
             width: tw,
             height: th,
           })),
+          ...(level.exits ?? []).map((exit, i) => ({
+            id: 100 + i,
+            name: exit.id,
+            type: "exit",
+            x: exit.x * tw,
+            y: (height - exit.y - exit.height) * th,
+            width: exit.width * tw,
+            height: exit.height * th,
+          })),
         ],
       },
     ],
   };
+}
+
+/** Player AABB overlaps an exit zone; returns the first matching exit. */
+export function findExitTrigger(
+  level: Level,
+  px: number,
+  py: number,
+  bodyW: number,
+  bodyH: number,
+): ExitZone | null {
+  for (const exit of level.exits ?? []) {
+    const left = px - bodyW / 2;
+    const right = px + bodyW / 2;
+    const bottom = py;
+    const top = py + bodyH;
+    const ex2 = exit.x + exit.width;
+    const ey2 = exit.y + exit.height;
+    if (right > exit.x && left < ex2 && top > exit.y && bottom < ey2) {
+      return exit;
+    }
+  }
+  return null;
 }

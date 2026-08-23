@@ -19,9 +19,9 @@ function isMidiSrc(src: string) {
 }
 
 function trackForScreen(screen: AppScreen): string | null {
+  if (screen === "menu") return "menu";
   if (screen === "play" || screen === "gym") return "gym";
-  if (screen === "exited" || screen === "builder") return null;
-  return "menu";
+  return null;
 }
 
 function MidiTheme({

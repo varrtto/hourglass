@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { INVENTORY_SIZE, type DebugSnapshot, type InventorySlot, type Kinematics, type Level } from "./types";
+import type { LevelManifest, PlayMode } from "./level/types";
+import { cloneManifest } from "./level/manifest";
 import { HAND_GUN, SWORD } from "./items";
 import { defaultKinematics } from "./player/kinematics";
 
@@ -33,6 +35,7 @@ export type AppScreen =
   | "play"
   | "gym"
   | "builder"
+  | "levelEditor"
   | "scoreboard"
   | "config"
   | "credits"
@@ -58,8 +61,13 @@ type GameStore = {
   inventory: InventorySlot[];
   selectedSlot: number;
   draftLevel: Level | null;
+  draftManifest: LevelManifest | null;
   playtestFromBuilder: boolean;
+  playtestFromLevelEditor: boolean;
+  playtestBeatId: string | null;
   playtestRevision: number;
+  playMode: PlayMode;
+  builderReturnScreen: AppScreen | null;
   setScreen: (screen: AppScreen) => void;
   setPaused: (paused: boolean) => void;
   setMuted: (muted: boolean) => void;
@@ -68,8 +76,14 @@ type GameStore = {
   setKinematics: (partial: Partial<Kinematics>) => void;
   setDebug: (debug: DebugSnapshot) => void;
   setDraftLevel: (level: Level | null) => void;
+  setDraftManifest: (manifest: LevelManifest | null) => void;
   setPlaytestFromBuilder: (value: boolean) => void;
+  setPlaytestFromLevelEditor: (value: boolean) => void;
+  setPlayMode: (mode: PlayMode) => void;
+  setBuilderReturnScreen: (screen: AppScreen | null) => void;
   startPlaytest: (level: Level) => void;
+  startLevelPlaytest: (manifest: LevelManifest, beatId?: string) => void;
+  startNewGame: (levelId: string) => void;
   setSelectedSlot: (index: number) => void;
   moveSelectedSlot: (delta: number) => void;
 };
@@ -87,12 +101,20 @@ export const useGameStore = create<GameStore>((set) => ({
   inventory: createStartingInventory(),
   selectedSlot: 0,
   draftLevel: null,
+  draftManifest: null,
   playtestFromBuilder: false,
+  playtestFromLevelEditor: false,
+  playtestBeatId: null,
   playtestRevision: 0,
+  playMode: "room",
+  builderReturnScreen: null,
   setScreen: (screen) =>
     set({
       screen,
       paused: screen !== "play" && screen !== "gym",
+      ...(screen !== "play" && screen !== "gym"
+        ? { playMode: "room" as PlayMode }
+        : {}),
     }),
   setPaused: (paused) => set({ paused }),
   setMuted: (muted) => set({ muted }),
@@ -103,7 +125,12 @@ export const useGameStore = create<GameStore>((set) => ({
     set((s) => ({ kinematics: { ...s.kinematics, ...partial } })),
   setDebug: (debug) => set({ debug }),
   setDraftLevel: (draftLevel) => set({ draftLevel }),
+  setDraftManifest: (draftManifest) => set({ draftManifest }),
   setPlaytestFromBuilder: (playtestFromBuilder) => set({ playtestFromBuilder }),
+  setPlaytestFromLevelEditor: (playtestFromLevelEditor) =>
+    set({ playtestFromLevelEditor }),
+  setPlayMode: (playMode) => set({ playMode }),
+  setBuilderReturnScreen: (builderReturnScreen) => set({ builderReturnScreen }),
   startPlaytest: (level) =>
     set((s) => ({
       draftLevel: {
@@ -111,12 +138,42 @@ export const useGameStore = create<GameStore>((set) => ({
         tiles: [...level.tiles],
         spawn: { ...level.spawn },
         bats: (level.bats ?? []).map((b) => ({ ...b })),
+        exits: (level.exits ?? []).map((e) => ({
+          ...e,
+          spawn: e.spawn ? { ...e.spawn } : undefined,
+        })),
       },
       playtestFromBuilder: true,
+      playtestFromLevelEditor: false,
+      playtestBeatId: null,
       playtestRevision: s.playtestRevision + 1,
       screen: "gym",
       paused: false,
+      playMode: "room",
     })),
+  startLevelPlaytest: (manifest, beatId) =>
+    set((s) => ({
+      draftManifest: cloneManifest(manifest),
+      playtestFromLevelEditor: true,
+      playtestFromBuilder: false,
+      playtestBeatId: beatId ?? manifest.start,
+      playtestRevision: s.playtestRevision + 1,
+      levelId: manifest.id,
+      screen: "play",
+      paused: false,
+      playMode: "room",
+    })),
+  startNewGame: (levelId) =>
+    set({
+      levelId,
+      playtestFromBuilder: false,
+      playtestFromLevelEditor: false,
+      playtestBeatId: null,
+      draftManifest: null,
+      screen: "play",
+      paused: false,
+      playMode: "scroll",
+    }),
   setSelectedSlot: (index) =>
     set({
       selectedSlot: Math.min(INVENTORY_SIZE - 1, Math.max(0, Math.floor(index))),

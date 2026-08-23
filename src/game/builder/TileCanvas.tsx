@@ -18,6 +18,7 @@ export function TileCanvas({
   onPaint,
   onPlaceSpawn,
   onPlaceBat,
+  onPlaceExit,
   onHover,
 }: {
   level: Level;
@@ -26,6 +27,7 @@ export function TileCanvas({
   onPaint: (tx: number, ty: number, tile: TileId) => void;
   onPlaceSpawn: (tx: number, ty: number) => void;
   onPlaceBat: (tx: number, ty: number) => void;
+  onPlaceExit: (tx: number, ty: number) => void;
   onHover: (hover: Hover) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -192,6 +194,21 @@ export function TileCanvas({
       ctx.stroke();
     }
 
+    for (const exit of lv.exits ?? []) {
+      const ex = ox + exit.x * px;
+      const ey = oy + (lv.height - exit.y - exit.height) * px;
+      ctx.fillStyle = "rgba(61, 139, 110, 0.45)";
+      ctx.fillRect(ex, ey, exit.width * px, exit.height * px);
+      ctx.strokeStyle = "rgba(61, 139, 110, 0.9)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(ex + 0.5, ey + 0.5, exit.width * px - 1, exit.height * px - 1);
+      if (px >= 8) {
+        ctx.fillStyle = "rgba(232, 245, 235, 0.85)";
+        ctx.font = `${Math.max(8, px * 0.45)}px monospace`;
+        ctx.fillText(exit.id.slice(0, 8), ex + 2, ey + px * 0.55);
+      }
+    }
+
     const hover = hoverRef.current;
     if (hover) {
       const sx = ox + hover.x * px;
@@ -254,6 +271,8 @@ export function TileCanvas({
       onPlaceSpawn(t.x, t.y);
     } else if (current === "bat") {
       onPlaceBat(t.x, t.y);
+    } else if (current === "exit") {
+      onPlaceExit(t.x, t.y);
     } else {
       onPaint(t.x, t.y, TOOL_TILE[current]);
     }

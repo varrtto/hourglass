@@ -27,9 +27,10 @@ export type BuilderTool =
   | "ledge"
   | "spike"
   | "spawn"
-  | "bat";
+  | "bat"
+  | "exit";
 
-export const TOOL_TILE: Record<Exclude<BuilderTool, "spawn" | "bat">, TileId> =
+export const TOOL_TILE: Record<Exclude<BuilderTool, "spawn" | "bat" | "exit">, TileId> =
   {
     empty: TILE_EMPTY,
     solid: TILE_SOLID,
@@ -45,6 +46,10 @@ export function cloneLevel(level: Level): Level {
     tiles: [...level.tiles],
     spawn: { ...level.spawn },
     bats: (level.bats ?? []).map((b) => ({ ...b })),
+    exits: (level.exits ?? []).map((e) => ({
+      ...e,
+      spawn: e.spawn ? { ...e.spawn } : undefined,
+    })),
   };
 }
 
@@ -104,6 +109,9 @@ export function resizeLevel(level: Level, width: number, height: number): Level 
         x: Math.min(Math.max(b.x, 0.5), w - 0.5),
         y: Math.min(Math.max(b.y, 0.5), h - 0.5),
       })),
+    exits: (level.exits ?? [])
+      .filter((e) => e.x >= 0 && e.x < w && e.y >= 0 && e.y < h)
+      .map((e) => ({ ...e })),
   };
 }
 

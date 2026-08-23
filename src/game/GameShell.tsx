@@ -2,14 +2,43 @@
 
 import { useEffect } from "react";
 import { AudioDirector } from "./audio/AudioDirector";
-import { MapBuilder } from "./builder/MapBuilder";
+import { LevelEditor } from "./builder/LevelEditor";
+import { RoomEditor } from "./builder/RoomEditor";
 import { GameApp } from "./GameApp";
+import { LevelPlayApp } from "./LevelPlayApp";
 import { Config } from "./menu/Config";
 import { Credits } from "./menu/Credits";
 import { ExitScreen, MainMenu } from "./menu/MainMenu";
 import { Scoreboard } from "./menu/Scoreboard";
 import { exitPlayViewport } from "./playViewport";
-import { useGameStore } from "./store";
+import { type AppScreen, useGameStore } from "./store";
+
+function ScreenView({ screen }: { screen: AppScreen }) {
+  switch (screen) {
+    case "menu":
+      return <MainMenu />;
+    case "scoreboard":
+      return <Scoreboard />;
+    case "config":
+      return <Config />;
+    case "credits":
+      return <Credits />;
+    case "exited":
+      return <ExitScreen />;
+    case "builder":
+      return <RoomEditor />;
+    case "levelEditor":
+      return <LevelEditor />;
+    case "play":
+      return <LevelPlayApp />;
+    case "gym":
+      return <GameApp mode="practice" />;
+    default: {
+      const _unhandled: never = screen;
+      return _unhandled;
+    }
+  }
+}
 
 export function GameShell() {
   const screen = useGameStore((s) => s.screen);
@@ -27,7 +56,15 @@ export function GameShell() {
       const current = state.screen;
       if (current === "builder") {
         e.preventDefault();
+        const ret = state.builderReturnScreen;
         state.setPlaytestFromBuilder(false);
+        state.setBuilderReturnScreen(null);
+        state.setScreen(ret ?? "menu");
+        return;
+      }
+      if (current === "levelEditor") {
+        e.preventDefault();
+        state.setPlaytestFromLevelEditor(false);
         state.setScreen("menu");
         return;
       }
@@ -37,6 +74,11 @@ export function GameShell() {
       ) {
         e.preventDefault();
         state.setScreen("builder");
+        return;
+      }
+      if (current === "play" && state.playtestFromLevelEditor) {
+        e.preventDefault();
+        state.setScreen("levelEditor");
         return;
       }
       if (
@@ -57,21 +99,7 @@ export function GameShell() {
   return (
     <>
       <AudioDirector />
-      {screen === "menu" ? (
-        <MainMenu />
-      ) : screen === "scoreboard" ? (
-        <Scoreboard />
-      ) : screen === "config" ? (
-        <Config />
-      ) : screen === "credits" ? (
-        <Credits />
-      ) : screen === "exited" ? (
-        <ExitScreen />
-      ) : screen === "builder" ? (
-        <MapBuilder />
-      ) : (
-        <GameApp mode={screen === "gym" ? "practice" : "play"} />
-      )}
+      <ScreenView screen={screen} />
     </>
   );
 }
