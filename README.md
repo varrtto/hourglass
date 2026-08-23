@@ -2,7 +2,7 @@
 
 Prince of Persia–style **kinematic** platformer gym. Movement is a state machine on a tile grid (run, jump, hang, climb, fall-by-stories), not a rigid-body physics engine.
 
-Stack: Next.js, TypeScript, Canvas 2D, Zustand, TanStack Query, `react-midi-player`, Leva, Tiled JSON.
+Stack: Next.js, TypeScript, Canvas 2D, Zustand, TanStack Query, `react-midi-player`, Leva, Tiled JSON. Desktop builds use [Tauri 2](https://v2.tauri.app/) (OS WebView shell).
 
 ```bash
 npm install
@@ -10,6 +10,31 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000). The app boots to the **main menu**. Click or press a key to start the menu music (browser autoplay is blocked until then). **M** toggles mute.
+
+### Web production
+
+The app is a **static export** (`output: "export"`). Production web is the `out/` folder — host it on any static host (Vercel, Netlify, Cloudflare Pages, S3, etc.):
+
+```bash
+npm run build
+npx serve out
+```
+
+`next start` is not used for production (no Node SSR server).
+
+### Desktop (Tauri)
+
+Requires [Rust](https://rustup.rs/) and platform tooling (Xcode CLT on macOS; WebView2 on Windows).
+
+```bash
+npm run desktop:dev    # Next + Tauri window
+npm run desktop:build  # packages installer under src-tauri/target/release/bundle/
+```
+
+- **macOS:** produces a `.dmg` (and `.app`). Unsigned builds need right-click → Open the first time.
+- **Windows:** build on a Windows machine (or CI). Produces an NSIS `.exe` installer. Cross-compiling Windows from macOS is not supported here.
+
+**Exit** closes the native window in the desktop app; browsers still usually block `window.close()` on a normal tab.
 
 ## Main menu
 
@@ -23,7 +48,7 @@ Full-screen pixel-art underworld (`public/art/menu-bg.png`) with these actions:
 | **Scoreboard** | Lists recorded runs (empty until a palace run is saved) |
 | **Config** | Mute and music volume |
 | **Credits** | Vertically scrolling text template (plot / credits crawl) |
-| **Exit** | Leaves the game; browsers usually block `window.close()` on a normal tab |
+| **Exit** | Closes the desktop app (Tauri); browsers usually block `window.close()` on a normal tab |
 
 Arrows / WASD select · Enter confirm. **Esc** from play, gym, builder, scoreboard, or credits returns to the menu. **Esc** during a builder playtest returns to the editor.
 

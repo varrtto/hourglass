@@ -8,6 +8,7 @@ import { MenuBackdrop } from "./MenuBackdrop";
 import { BUILTIN_LEVEL_ID, DEFAULT_CAMPAIGN_ID } from "../db/types";
 import { getCampaign } from "../db/campaignsRepo";
 import { getDb } from "../db/sqlite";
+import { closeDesktopApp } from "../desktop";
 
 const ITEMS: { screen: AppScreen; label: string; action?: "newGame" }[] = [
   { screen: "play", label: "Start new game", action: "newGame" },
@@ -43,7 +44,9 @@ export function MainMenu() {
       }
       setScreen(item.screen);
       if (item.screen === "exited") {
-        window.close();
+        void closeDesktopApp().then((closed) => {
+          if (!closed) window.close();
+        });
       }
     },
     [setScreen],
