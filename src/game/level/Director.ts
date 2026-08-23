@@ -123,7 +123,13 @@ export class LevelDirector {
   }
 
   tickTime(dt: number) {
-    if (this.timedOut || this.playMode === "complete") return;
+    if (
+      this.timedOut ||
+      this.playMode === "complete" ||
+      this.playMode === "scroll"
+    ) {
+      return;
+    }
     const limit = this.manifest.timeLimitSec;
     if (limit == null || limit <= 0) return;
 

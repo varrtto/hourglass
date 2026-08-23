@@ -24,14 +24,12 @@ const EMPTY_INPUT = {
   usePressed: false,
 };
 
-const EXIT_PAUSE_SEC = 1;
 const EXIT_FADE_SEC = 0.8;
 
 type ExitSequence = {
   exitId: string;
   spawn?: { x: number; y: number };
   elapsed: number;
-  phase: "pause" | "fade";
 };
 
 function damp(current: number, target: number, lambda: number, dt: number) {
@@ -154,30 +152,21 @@ export function GameCanvas({
             exitId: exit.id,
             spawn: exit.spawn,
             elapsed: 0,
-            phase: "pause",
           };
         }
       });
 
       if (exitSeq) {
         exitSeq.elapsed += rawDt;
-        if (exitSeq.phase === "pause") {
+        playerAlphaRef.current = Math.max(
+          0,
+          1 - exitSeq.elapsed / EXIT_FADE_SEC,
+        );
+        if (exitSeq.elapsed >= EXIT_FADE_SEC) {
+          const { exitId, spawn } = exitSeq;
+          exitSeqRef.current = null;
           playerAlphaRef.current = 1;
-          if (exitSeq.elapsed >= EXIT_PAUSE_SEC) {
-            exitSeq.phase = "fade";
-            exitSeq.elapsed = 0;
-          }
-        } else {
-          playerAlphaRef.current = Math.max(
-            0,
-            1 - exitSeq.elapsed / EXIT_FADE_SEC,
-          );
-          if (exitSeq.elapsed >= EXIT_FADE_SEC) {
-            const { exitId, spawn } = exitSeq;
-            exitSeqRef.current = null;
-            playerAlphaRef.current = 1;
-            onExitRef.current?.(exitId, spawn);
-          }
+          onExitRef.current?.(exitId, spawn);
         }
       }
 

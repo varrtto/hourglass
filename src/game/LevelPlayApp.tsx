@@ -219,7 +219,8 @@ export function LevelPlayApp() {
         </p>
       ) : null}
 
-      {directorState?.playMode !== "complete" ? (
+      {directorState?.playMode !== "complete" &&
+      directorState?.playMode !== "scroll" ? (
         <TimeLimitHud seconds={directorState?.timeRemainingSec ?? null} />
       ) : null}
 
