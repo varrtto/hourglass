@@ -21,14 +21,21 @@ export const TILE_COLORS: Record<number, string> = {
   [TILE_SPIKE]: "#8b1e2d",
 };
 
-export type BuilderTool = "empty" | "solid" | "ledge" | "spike" | "spawn";
+export type BuilderTool =
+  | "empty"
+  | "solid"
+  | "ledge"
+  | "spike"
+  | "spawn"
+  | "bat";
 
-export const TOOL_TILE: Record<Exclude<BuilderTool, "spawn">, TileId> = {
-  empty: TILE_EMPTY,
-  solid: TILE_SOLID,
-  ledge: TILE_LEDGE,
-  spike: TILE_SPIKE,
-};
+export const TOOL_TILE: Record<Exclude<BuilderTool, "spawn" | "bat">, TileId> =
+  {
+    empty: TILE_EMPTY,
+    solid: TILE_SOLID,
+    ledge: TILE_LEDGE,
+    spike: TILE_SPIKE,
+  };
 
 export function cloneLevel(level: Level): Level {
   return {
@@ -37,6 +44,7 @@ export function cloneLevel(level: Level): Level {
     height: level.height,
     tiles: [...level.tiles],
     spawn: { ...level.spawn },
+    bats: (level.bats ?? []).map((b) => ({ ...b })),
   };
 }
 
@@ -60,6 +68,7 @@ export function createBlankLevel(
     height: h,
     tiles,
     spawn: { x: 2.5, y: 1 },
+    bats: [],
   };
 }
 
@@ -89,6 +98,12 @@ export function resizeLevel(level: Level, width: number, height: number): Level 
       x: Math.min(Math.max(level.spawn.x, 0.5), w - 0.5),
       y: Math.min(Math.max(level.spawn.y, 1), h),
     },
+    bats: (level.bats ?? [])
+      .filter((b) => b.x >= 0 && b.x < w && b.y >= 0 && b.y < h)
+      .map((b) => ({
+        x: Math.min(Math.max(b.x, 0.5), w - 0.5),
+        y: Math.min(Math.max(b.y, 0.5), h - 0.5),
+      })),
   };
 }
 

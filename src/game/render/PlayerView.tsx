@@ -145,3 +145,46 @@ export function drawProjectiles(
     ctx.restore();
   }
 }
+
+export function drawBats(
+  ctx: CanvasRenderingContext2D,
+  cam: Camera2D,
+  world: World,
+) {
+  for (const bat of world.bats) {
+    if (!bat.alive) continue;
+    const p = worldToScreen(cam, bat.x, bat.y);
+    const flap = 0.55 + 0.45 * Math.sin(bat.phase * 14);
+    const s = cam.ppt;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(bat.dir, 1);
+
+    // Wings
+    ctx.fillStyle = "#4a3d6d";
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(-0.55 * s, -0.55 * s * flap, -0.85 * s, 0.05 * s);
+    ctx.quadraticCurveTo(-0.35 * s, 0.12 * s, 0, 0);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(0.55 * s, -0.55 * s * flap, 0.85 * s, 0.05 * s);
+    ctx.quadraticCurveTo(0.35 * s, 0.12 * s, 0, 0);
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle = "#6b5b95";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 0.28 * s, 0.18 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye
+    ctx.fillStyle = "#e8c547";
+    ctx.beginPath();
+    ctx.arc(0.1 * s, -0.04 * s, 0.05 * s, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+}

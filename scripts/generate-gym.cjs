@@ -58,6 +58,20 @@ hline(26, 36, s3, 1);
 for (let x = 48; x <= 52; x++) set(x, s3, 2);
 
 const data = tiles.flat();
+
+/** Bat at world center (x, y); loader converts Tiled y-down → world y-up. */
+function batObject(id, worldX, worldY) {
+  return {
+    id,
+    name: "bat",
+    type: "bat",
+    x: (worldX - 0.5) * 16,
+    y: (H - worldY) * 16,
+    width: 16,
+    height: 16,
+  };
+}
+
 const map = {
   compressionlevel: -1,
   width: W,
@@ -71,7 +85,7 @@ const map = {
   type: "map",
   version: "1.10",
   nextlayerid: 3,
-  nextobjectid: 2,
+  nextobjectid: 4,
   tilesets: [
     {
       firstgid: 1,
@@ -118,6 +132,10 @@ const map = {
           width: 16,
           height: 16,
         },
+        // Over the short gap on story 3 (patrol ±2)
+        batObject(2, 12.5, 12.5),
+        // Mid-map over story 2 runway
+        batObject(3, 30.5, 12.5),
       ],
     },
   ],

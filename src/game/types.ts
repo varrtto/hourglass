@@ -65,12 +65,31 @@ export type Player = {
   duckJumpBoosted: boolean;
 };
 
+/** Placement for a bat enemy (world tile units, center). */
+export type BatSpawn = {
+  x: number;
+  y: number;
+};
+
 export type Level = {
   id: string;
   width: number;
   height: number;
   tiles: TileId[];
   spawn: { x: number; y: number };
+  bats: BatSpawn[];
+};
+
+/** Live bat instance during play. */
+export type Bat = {
+  homeX: number;
+  homeY: number;
+  x: number;
+  y: number;
+  dir: 1 | -1;
+  alive: boolean;
+  /** Wing flap / bob phase in seconds. */
+  phase: number;
 };
 
 export type ProjectileKind = "bullet" | "slash";
@@ -93,6 +112,7 @@ export type World = {
   player: Player;
   projectiles: Projectile[];
   fireCooldown: number;
+  bats: Bat[];
 };
 
 export const INVENTORY_SIZE = 5;

@@ -3,6 +3,7 @@ import {
   TILE_LEDGE,
   TILE_SOLID,
   TILE_SPIKE,
+  type BatSpawn,
   type Level,
   type TileId,
 } from "../types";
@@ -94,21 +95,29 @@ export function tiledToLevel(id: string, map: TiledMap): Level {
   }
 
   let spawn = { x: 2.5, y: 2 };
+  const bats: BatSpawn[] = [];
   const objects = map.layers.find((l) => l.type === "objectgroup")?.objects;
+  const tw = map.tilewidth || 16;
+  const th = map.tileheight || 16;
   const spawnObj = objects?.find(
     (o) => o.name === "spawn" || o.type === "spawn",
   );
   if (spawnObj) {
-    const tw = map.tilewidth || 16;
-    const th = map.tileheight || 16;
     const tiledTileY = spawnObj.y / th;
     spawn = {
       x: spawnObj.x / tw + 0.5,
       y: height - tiledTileY,
     };
   }
+  for (const obj of objects ?? []) {
+    if (obj.name !== "bat" && obj.type !== "bat") continue;
+    bats.push({
+      x: obj.x / tw + 0.5,
+      y: height - obj.y / th,
+    });
+  }
 
-  return { id, width, height, tiles, spawn };
+  return { id, width, height, tiles, spawn, bats };
 }
 
 /** Inverse of `tiledToLevel`: runtime y-up tiles → Tiled y-down JSON. */
@@ -138,7 +147,7 @@ export function levelToTiled(level: Level): TiledMap {
     type: "map",
     version: "1.10",
     nextlayerid: 3,
-    nextobjectid: 2,
+    nextobjectid: 2 + (level.bats?.length ?? 0),
     tilesets: [
       {
         firstgid: 1,
@@ -185,6 +194,15 @@ export function levelToTiled(level: Level): TiledMap {
             width: tw,
             height: th,
           },
+          ...(level.bats ?? []).map((bat, i) => ({
+            id: 2 + i,
+            name: "bat",
+            type: "bat",
+            x: (bat.x - 0.5) * tw,
+            y: (height - bat.y) * th,
+            width: tw,
+            height: th,
+          })),
         ],
       },
     ],

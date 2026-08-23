@@ -96,7 +96,7 @@ Click or press a key once to unlock audio (browser autoplay). **M** toggles mute
 
 1. Create a map with 16×16 tiles, orthogonal.
 2. Collision tileset GIDs: **1 solid**, **2 ledge** (one-way + grab), **3 spike**.
-3. One tile layer named `collision`, one object layer `entities` with a `spawn` object.
+3. One tile layer named `collision`, one object layer `entities` with a `spawn` object (and optional `bat` objects).
 4. Export as JSON to `public/levels/<id>.json`.
 5. Tiled is **y-down**; the loader flips to **y-up** world space.
 
@@ -114,11 +114,13 @@ Main menu → **Map Builder**. The grid is runtime space (y-up, 1 tile = 1 unit)
 
 | Tool | Key |
 |---|---|
-| Empty / solid / ledge / spike / spawn | 1–5 |
+| Empty / solid / ledge / spike / spawn / bat | 1–6 |
 | Paint | Click-drag |
 | Pan | Space-drag or middle-drag |
 | Zoom | Mouse wheel |
 | Undo / redo | ⌘Z / Shift+⌘Z |
+
+**Bat** places a flying enemy that patrols ±2 tiles horizontally. Touch kills the player (press **R** to restart the level). Gun shots and sword swings kill the bat. Click the same tile again to remove it.
 
 **Playtest** drops the draft into Practice Gym immediately (Esc returns to the editor). **Download** writes Tiled JSON you can drop into `public/levels/<id>.json`. **Load gym** / **Import** round-trip the same format. New maps are 64×24 with edge walls.
 

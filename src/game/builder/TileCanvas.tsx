@@ -17,6 +17,7 @@ export function TileCanvas({
   storyHeight,
   onPaint,
   onPlaceSpawn,
+  onPlaceBat,
   onHover,
 }: {
   level: Level;
@@ -24,6 +25,7 @@ export function TileCanvas({
   storyHeight: number;
   onPaint: (tx: number, ty: number, tile: TileId) => void;
   onPlaceSpawn: (tx: number, ty: number) => void;
+  onPlaceBat: (tx: number, ty: number) => void;
   onHover: (hover: Hover) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -166,6 +168,30 @@ export function TileCanvas({
     ctx.lineWidth = 1;
     ctx.stroke();
 
+    for (const bat of lv.bats ?? []) {
+      const bx = ox + bat.x * px;
+      const by = oy + (lv.height - bat.y) * px;
+      const r = Math.max(3, px * 0.28);
+      ctx.fillStyle = "#6b5b95";
+      ctx.beginPath();
+      ctx.ellipse(bx, by, r * 1.15, r * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#4a3d6d";
+      ctx.beginPath();
+      ctx.moveTo(bx - r * 1.5, by);
+      ctx.quadraticCurveTo(bx - r * 0.7, by - r * 1.1, bx, by);
+      ctx.quadraticCurveTo(bx + r * 0.7, by - r * 1.1, bx + r * 1.5, by);
+      ctx.closePath();
+      ctx.fill();
+      // Patrol cue: ±2 tiles
+      ctx.strokeStyle = "rgba(107, 91, 149, 0.35)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(bx - 2 * px, by);
+      ctx.lineTo(bx + 2 * px, by);
+      ctx.stroke();
+    }
+
     const hover = hoverRef.current;
     if (hover) {
       const sx = ox + hover.x * px;
@@ -226,6 +252,8 @@ export function TileCanvas({
     const current = toolRef.current;
     if (current === "spawn") {
       onPlaceSpawn(t.x, t.y);
+    } else if (current === "bat") {
+      onPlaceBat(t.x, t.y);
     } else {
       onPaint(t.x, t.y, TOOL_TILE[current]);
     }
@@ -278,7 +306,7 @@ export function TileCanvas({
       onHover(hover);
       draw();
     }
-    if (painting.current && toolRef.current !== "spawn") {
+    if (painting.current && toolRef.current !== "spawn" && toolRef.current !== "bat") {
       applyAt(mx, my);
     }
   };

@@ -16,6 +16,12 @@ import {
   tileAt,
 } from "../world/tiles";
 import { stepProjectiles, tryFireWeapon } from "../combat/projectiles";
+import {
+  createBats,
+  resolveBatPlayerContact,
+  resolveBatProjectileHits,
+  stepBats,
+} from "../enemies/bat";
 
 export function createPlayer(level: Level, k: Kinematics): Player {
   return {
@@ -44,6 +50,7 @@ export function createWorld(level: Level, k: Kinematics): World {
     player: createPlayer(level, k),
     projectiles: [],
     fireCooldown: 0,
+    bats: createBats(level),
   };
 }
 
@@ -530,6 +537,7 @@ export function respawn(world: World, k: Kinematics) {
   world.player = createPlayer(world.level, k);
   world.projectiles = [];
   world.fireCooldown = 0;
+  world.bats = createBats(world.level);
 }
 
 export function stepWorld(
@@ -550,6 +558,8 @@ export function stepWorld(
 
   tryFireWeapon(world, input, k, selectedItem);
   stepProjectiles(world, dt);
+  stepBats(world, dt);
+  resolveBatProjectileHits(world);
 
   const dir = moveIntent(input);
   const onGround = grounded(world, k);
@@ -861,6 +871,7 @@ export function stepWorld(
     p.hp = 0;
     setState(p, "dead");
   }
+  resolveBatPlayerContact(world, k);
 }
 
 export function snapshotDebug(

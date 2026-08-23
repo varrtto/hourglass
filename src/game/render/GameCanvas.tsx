@@ -7,7 +7,7 @@ import { createWorld, snapshotDebug, stepWorld } from "../player/fsm";
 import type { Level, World } from "../types";
 import { useGameStore } from "../store";
 import { drawBackdrop, drawLevel, type Camera2D } from "./LevelView";
-import { drawPlayer, drawProjectiles } from "./PlayerView";
+import { drawBats, drawPlayer, drawProjectiles } from "./PlayerView";
 import { playSfx } from "../audio/sfx";
 import type { SpriteManifest } from "../queries";
 
@@ -142,6 +142,7 @@ export function GameCanvas({
       ctx.imageSmoothingEnabled = false;
       drawBackdrop(ctx, cam, level);
       drawLevel(ctx, cam, level);
+      drawBats(ctx, cam, world);
       drawPlayer(
         ctx,
         cam,

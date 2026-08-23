@@ -25,9 +25,10 @@ const TOOL_KEYS: Record<string, BuilderTool> = {
   "3": "ledge",
   "4": "spike",
   "5": "spawn",
+  "6": "bat",
 };
 
-type Snapshot = Pick<Level, "width" | "height" | "tiles" | "spawn">;
+type Snapshot = Pick<Level, "width" | "height" | "tiles" | "spawn" | "bats">;
 
 function snapOf(level: Level): Snapshot {
   return {
@@ -35,6 +36,7 @@ function snapOf(level: Level): Snapshot {
     height: level.height,
     tiles: [...level.tiles],
     spawn: { ...level.spawn },
+    bats: (level.bats ?? []).map((b) => ({ ...b })),
   };
 }
 
@@ -45,6 +47,7 @@ function applySnap(id: string, snap: Snapshot): Level {
     height: snap.height,
     tiles: [...snap.tiles],
     spawn: { ...snap.spawn },
+    bats: snap.bats.map((b) => ({ ...b })),
   };
 }
 
@@ -113,6 +116,25 @@ export function MapBuilder() {
       if (cur.spawn.x === next.x && cur.spawn.y === next.y) return;
       pushUndo(cur);
       commit({ ...cur, spawn: next });
+    },
+    [commit, pushUndo],
+  );
+
+  const placeBat = useCallback(
+    (tx: number, ty: number) => {
+      const cur = docRef.current;
+      const x = tx + 0.5;
+      const y = ty + 0.5;
+      const existing = (cur.bats ?? []).findIndex(
+        (b) => Math.floor(b.x) === tx && Math.floor(b.y) === ty,
+      );
+      pushUndo(cur);
+      if (existing >= 0) {
+        const bats = (cur.bats ?? []).filter((_, i) => i !== existing);
+        commit({ ...cur, bats });
+        return;
+      }
+      commit({ ...cur, bats: [...(cur.bats ?? []), { x, y }] });
     },
     [commit, pushUndo],
   );
@@ -301,6 +323,7 @@ export function MapBuilder() {
           storyHeight={storyHeight}
           onPaint={paint}
           onPlaceSpawn={placeSpawn}
+          onPlaceBat={placeBat}
           onHover={setHover}
         />
       </div>
@@ -318,7 +341,7 @@ export function MapBuilder() {
         <span className="ml-auto">
           {mobile
             ? "Tap tools · drag paint · pinch zoom · Menu to leave"
-            : "1–5 tools · drag paint · space/middle pan · wheel zoom · ⌘Z undo · Esc menu"}
+            : "1–6 tools · drag paint · space/middle pan · wheel zoom · ⌘Z undo · Esc menu"}
         </span>
       </footer>
     </div>

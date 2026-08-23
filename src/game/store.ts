@@ -110,6 +110,7 @@ export const useGameStore = create<GameStore>((set) => ({
         ...level,
         tiles: [...level.tiles],
         spawn: { ...level.spawn },
+        bats: (level.bats ?? []).map((b) => ({ ...b })),
       },
       playtestFromBuilder: true,
       playtestRevision: s.playtestRevision + 1,
