@@ -1,8 +1,10 @@
 import type { TiledMap } from "./world/loadLevel";
 
 export type SpriteTag = {
-  from: number;
-  to: number;
+  from?: number;
+  to?: number;
+  /** Explicit frame indices (overrides from/to when present). */
+  frames?: number[];
   fps: number;
 };
 

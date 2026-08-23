@@ -77,6 +77,8 @@ The original loose layout is kept at `public/sprites/prince-source.png`.
 
 `drawPlayer` in `src/game/render/PlayerView.tsx` blits frames from the FSM state.
 
+How tags map to cells, and how to edit them: [`public/sprites/README.md`](./public/sprites/README.md).
+
 ## Music pipeline
 
 Edit `public/audio/playlist.json`. Menu `.mid` files play through `react-midi-player`. Other loops and SFX use the HTML `Audio` element. Missing files no-op. Optional `"volume"` on an SFX entry is `0`–`1` (default `1`).

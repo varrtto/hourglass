@@ -1,5 +1,5 @@
-import type { Player, PlayerState, World } from "../types";
 import type { SpriteManifest } from "../queries";
+import type { Player, PlayerState, World } from "../types";
 import { type Camera2D, worldToScreen } from "./LevelView";
 
 const STATE_TAG: Record<PlayerState, string> = {
@@ -19,18 +19,36 @@ const STATE_TAG: Record<PlayerState, string> = {
 
 const LOOPING = new Set(["idle", "run", "fall", "hang", "crouch"]);
 
+function tagFrames(
+  tag: { from?: number; to?: number; frames?: number[] },
+): number[] {
+  if (tag.frames && tag.frames.length > 0) return tag.frames;
+  const from = tag.from ?? 0;
+  const to = tag.to ?? from;
+  const list: number[] = [];
+  for (let i = from; i <= to; i++) list.push(i);
+  return list;
+}
+
 export function playerFrameIndex(
   player: Player,
   sprites: SpriteManifest,
 ): number {
   const tagName = STATE_TAG[player.state] ?? "idle";
   const tag = sprites.tags[tagName] ?? sprites.tags.idle;
-  const count = Math.max(1, tag.to - tag.from + 1);
+  const frames = tagFrames(tag);
+  const count = Math.max(1, frames.length);
+
+  // Crouch: hold first frame while still; only cycle while crawling.
+  if (player.state === "crouch" && Math.abs(player.vx) < 0.05) {
+    return frames[1] ?? 0;
+  }
+
   const frameOffset = Math.floor(player.timer * tag.fps);
   const local = LOOPING.has(tagName)
     ? frameOffset % count
     : Math.min(frameOffset, count - 1);
-  return tag.from + local;
+  return frames[local] ?? frames[0] ?? 0;
 }
 
 export function drawPlayer(
@@ -42,7 +60,9 @@ export function drawPlayer(
   sprites: SpriteManifest | null,
   sheet: HTMLImageElement | null,
 ) {
-  const displayH = 2.2 * (player.height / standHeight);
+  // Sprite art already encodes crouch/hang poses — keep a constant draw
+  // size. Collision still uses player.height; only the fallback box scales.
+  const displayH = 2.2;
   const aspect = sprites
     ? sprites.frameWidth / sprites.frameHeight
     : bodyWidth / standHeight;
@@ -63,6 +83,7 @@ export function drawPlayer(
     const sy = row * sprites.frameHeight;
 
     ctx.save();
+    // Anchor at feet so crouch art sits on the floor instead of floating.
     ctx.translate(feet.x, feet.y - h / 2);
     ctx.scale(player.facing, 1);
     ctx.imageSmoothingEnabled = false;

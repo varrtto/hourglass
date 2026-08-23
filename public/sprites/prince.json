@@ -13,55 +13,74 @@
     "turn": {
       "from": 1,
       "to": 3,
-      "fps": 12
+      "fps": 10
     },
     "run": {
-      "from": 4,
-      "to": 11,
+      "frames": [
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        15,
+        16
+      ],
       "fps": 12
     },
     "skid": {
-      "from": 12,
-      "to": 13,
+      "from": 17,
+      "to": 18,
       "fps": 10
     },
     "stand_jump": {
-      "from": 14,
-      "to": 18,
-      "fps": 12
+      "frames": [
+        12,
+        13,
+        14,
+        20,
+        21
+      ],
+      "fps": 10
     },
     "run_jump": {
-      "from": 19,
-      "to": 24,
-      "fps": 12
+      "frames": [
+        12,
+        13,
+        20,
+        21
+      ],
+      "fps": 10
     },
     "fall": {
-      "from": 25,
-      "to": 26,
+      "from": 27,
+      "to": 28,
       "fps": 8
     },
     "land": {
-      "from": 27,
-      "to": 29,
-      "fps": 12
+      "from": 19,
+      "to": 19,
+      "fps": 8
     },
     "hang": {
-      "from": 30,
-      "to": 31,
+      "from": 22,
+      "to": 23,
       "fps": 6
     },
     "climb": {
-      "from": 32,
-      "to": 35,
-      "fps": 12
+      "from": 24,
+      "to": 26,
+      "fps": 10
     },
     "crouch": {
-      "from": 36,
-      "to": 37,
+      "from": 30,
+      "to": 35,
       "fps": 8
     },
     "dead": {
-      "from": 38,
+      "from": 36,
       "to": 39,
       "fps": 6
     }
