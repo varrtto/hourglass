@@ -91,8 +91,8 @@ export function MainMenu() {
         <p className="font-display text-[10px] tracking-[0.4em] text-amber-200/70 uppercase sm:text-[11px] sm:tracking-[0.45em]">
           A kinematic palace
         </p>
-        <h1 className="font-display mt-1 text-[2.35rem] leading-none font-semibold tracking-[0.14em] text-amber-50 sm:mt-2 sm:text-7xl sm:tracking-[0.18em] [@media(max-height:520px)]:text-[2rem]">
-          HOURGLASS
+        <h1 className="font-display mt-1 text-[1.85rem] leading-none font-semibold tracking-[0.08em] text-amber-50 sm:mt-2 sm:text-6xl sm:tracking-[0.1em] [@media(max-height:520px)]:text-[1.65rem]">
+          ORPHEUS&apos; DESCENT
         </h1>
         <div className="mt-3 h-px w-32 bg-gradient-to-r from-amber-200/80 to-transparent sm:mt-4 sm:w-48" />
 

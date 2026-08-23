@@ -79,10 +79,10 @@ export function bootMidi(): Promise<void> {
       gain = ac.createGain();
       gain.gain.value = targetGain;
       gain.connect(ac.destination);
-      jzz.synth.Tiny.register("Hourglass");
+      jzz.synth.Tiny.register("Orpheus");
       await new Promise<void>((resolve, reject) => {
         jzz!()
-          .openMidiOut("Hourglass")
+          .openMidiOut("Orpheus")
           .and(function (this: MidiOut) {
             // JZZ binds the MIDI port as `this`.
             // eslint-disable-next-line @typescript-eslint/no-this-alias

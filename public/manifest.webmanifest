@@ -1,7 +1,7 @@
 {
-  "name": "Hourglass",
-  "short_name": "Hourglass",
-  "description": "Prince of Persia–style kinematic platformer gym",
+  "name": "Orpheus' Descent",
+  "short_name": "Orpheus",
+  "description": "Prince of Persia–style kinematic platformer",
   "start_url": "/",
   "display": "fullscreen",
   "orientation": "landscape",

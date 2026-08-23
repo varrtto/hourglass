@@ -20,13 +20,13 @@ const cinzel = Cinzel({
 });
 
 export const metadata: Metadata = {
-  title: "Hourglass — movement gym",
-  description: "Prince of Persia–style kinematic platformer gym",
+  title: "Orpheus' Descent",
+  description: "Prince of Persia–style kinematic platformer",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Hourglass",
+    title: "Orpheus' Descent",
   },
 };
 
@@ -45,6 +45,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} ${cinzel.variable} h-full antialiased`}
     >
+      <head>
+        <link
+          rel="preload"
+          href="/art/menu-bg-2.png"
+          as="image"
+          type="image/png"
+          fetchPriority="high"
+        />
+      </head>
       <body className="min-h-full bg-[#0e0a08] text-amber-50">
         <Providers>{children}</Providers>
       </body>

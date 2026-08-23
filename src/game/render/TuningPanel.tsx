@@ -11,7 +11,7 @@ export function TuningPanel() {
   const setMuted = useGameStore((s) => s.setMuted);
   const setShowDebug = useGameStore((s) => s.setShowDebug);
 
-  const values = useControls("Hourglass", {
+  const values = useControls("Orpheus' Descent", {
     paused: false,
     muted: useGameStore.getState().muted,
     showDebug: true,

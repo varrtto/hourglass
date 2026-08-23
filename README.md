@@ -1,4 +1,4 @@
-# Hourglass
+# Orpheus' Descent
 
 Prince of Persia–style **kinematic** platformer gym. Movement is a state machine on a tile grid (run, jump, hang, climb, fall-by-stories), not a rigid-body physics engine.
 
@@ -23,7 +23,7 @@ Full-screen pixel-art underworld (`public/art/menu-bg.png`) with these actions:
 | **Scoreboard** | Lists recorded runs (empty until a palace run is saved) |
 | **Config** | Mute and music volume |
 | **Credits** | Vertically scrolling text template (plot / credits crawl) |
-| **Exit** | Stills the hourglass; browsers usually block `window.close()` on a normal tab |
+| **Exit** | Leaves the game; browsers usually block `window.close()` on a normal tab |
 
 Arrows / WASD select · Enter confirm. **Esc** from play, gym, builder, scoreboard, or credits returns to the menu. **Esc** during a builder playtest returns to the editor.
 

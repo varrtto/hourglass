@@ -248,7 +248,7 @@ export function MapBuilder() {
       <header className="flex flex-wrap items-center gap-2 border-b border-amber-200/15 px-4 py-2">
         <div className="mr-4">
           <p className="font-display text-[10px] tracking-[0.35em] text-amber-200/60 uppercase">
-            Hourglass
+            Orpheus&apos; Descent
           </p>
           <h1 className="font-display text-xl tracking-[0.14em] text-amber-50">
             MAP BUILDER
