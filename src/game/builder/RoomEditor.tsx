@@ -28,9 +28,11 @@ import {
   applySnap,
   findBatAt,
   findExitAt,
+  findKeresAt,
   reasonCannotPaintTile,
   reasonCannotPlaceBat,
   reasonCannotPlaceExit,
+  reasonCannotPlaceKeres,
   reasonCannotPlaceSpawn,
   snapOf,
 } from "./roomEditorRules";
@@ -43,6 +45,7 @@ const TOOL_KEYS: Record<string, BuilderTool> = {
   "5": "spawn",
   "6": "bat",
   "7": "exit",
+  "8": "keres",
 };
 
 export function RoomEditor() {
@@ -160,6 +163,33 @@ export function RoomEditor() {
     [commit, pushUndo],
   );
 
+  const placeKeres = useCallback(
+    (tx: number, ty: number) => {
+      const cur = docRef.current;
+      const existing = findKeresAt(cur, tx, ty);
+      if (existing >= 0) {
+        pushUndo(cur);
+        commit({
+          ...cur,
+          keres: (cur.keres ?? []).filter((_, i) => i !== existing),
+        });
+        return;
+      }
+      const blocked = reasonCannotPlaceKeres(cur, tx, ty);
+      if (blocked) {
+        setStatus(blocked);
+        return;
+      }
+      pushUndo(cur);
+      // Feet on the tile floor; home is the right end of the 4-tile patrol.
+      commit({
+        ...cur,
+        keres: [...(cur.keres ?? []), { x: tx + 0.5, y: ty }],
+      });
+    },
+    [commit, pushUndo],
+  );
+
   const placeExit = useCallback(
     (tx: number, ty: number) => {
       const cur = docRef.current;
@@ -195,14 +225,17 @@ export function RoomEditor() {
     (tx: number, ty: number) => {
       const cur = docRef.current;
       const batIdx = findBatAt(cur, tx, ty);
+      const keresIdx = findKeresAt(cur, tx, ty);
       const exitIdx = findExitAt(cur, tx, ty);
-      if (batIdx < 0 && exitIdx < 0) return false;
+      if (batIdx < 0 && keresIdx < 0 && exitIdx < 0) return false;
       pushUndo(cur);
       let bats = cur.bats ?? [];
+      let keres = cur.keres ?? [];
       let exits = cur.exits ?? [];
       if (batIdx >= 0) bats = bats.filter((_, i) => i !== batIdx);
+      if (keresIdx >= 0) keres = keres.filter((_, i) => i !== keresIdx);
       if (exitIdx >= 0) exits = exits.filter((_, i) => i !== exitIdx);
-      commit({ ...cur, bats, exits });
+      commit({ ...cur, bats, keres, exits });
       return true;
     },
     [commit, pushUndo],
@@ -211,20 +244,23 @@ export function RoomEditor() {
   const paint = useCallback(
     (tx: number, ty: number, tile: TileId) => {
       const cur = docRef.current;
-      // Empty brush also clears bats / exits on that tile.
+      // Empty brush also clears enemies / exits on that tile.
       if (tile === TILE_EMPTY) {
         const batIdx = findBatAt(cur, tx, ty);
+        const keresIdx = findKeresAt(cur, tx, ty);
         const exitIdx = findExitAt(cur, tx, ty);
-        if (batIdx >= 0 || exitIdx >= 0) {
+        if (batIdx >= 0 || keresIdx >= 0 || exitIdx >= 0) {
           beginStroke();
           let bats = cur.bats ?? [];
+          let keres = cur.keres ?? [];
           let exits = cur.exits ?? [];
           if (batIdx >= 0) bats = bats.filter((_, i) => i !== batIdx);
+          if (keresIdx >= 0) keres = keres.filter((_, i) => i !== keresIdx);
           if (exitIdx >= 0) exits = exits.filter((_, i) => i !== exitIdx);
           const i = ty * cur.width + tx;
           const tiles = [...cur.tiles];
           tiles[i] = tile;
-          commit({ ...cur, tiles, bats, exits });
+          commit({ ...cur, tiles, bats, keres, exits });
           return;
         }
       } else {
@@ -452,6 +488,7 @@ export function RoomEditor() {
           onPaint={paint}
           onPlaceSpawn={placeSpawn}
           onPlaceBat={placeBat}
+          onPlaceKeres={placeKeres}
           onPlaceExit={placeExit}
           onErase={eraseAt}
           onHover={setHover}
@@ -473,8 +510,8 @@ export function RoomEditor() {
         {status ? <span className="text-amber-200/70">{status}</span> : null}
         <span className="ml-auto">
           {mobile
-            ? "Tap tools · drag paint · empty/bat/exit tap again to remove · Menu to leave"
-            : "1–7 tools · click bat/exit again to remove · empty or right-click erases · ⌘Z undo"}
+            ? "Tap tools · drag paint · empty/spirit/keres/exit tap again to remove · Menu to leave"
+            : "1–8 tools · click spirit/keres/exit again to remove · empty or right-click erases · ⌘Z undo"}
         </span>
       </footer>
     </div>

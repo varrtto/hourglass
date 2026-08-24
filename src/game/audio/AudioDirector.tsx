@@ -51,22 +51,37 @@ function MidiTheme({
   src: string;
   gain: number;
 }) {
+  const gainRef = useRef(gain);
+  const audible = gain > 0;
+
   useEffect(() => {
+    gainRef.current = gain;
+    setMidiGain(gain);
+  }, [gain]);
+
+  useEffect(() => {
+    // Don't start transport while muted — Tiny's compressor/reverb still see
+    // full-level audio before our gain node, and the playhead would advance
+    // silently so unmute lands mid-phrase at a different perceived level.
+    if (!audible) {
+      stopMidi();
+      return;
+    }
     let cancelled = false;
     void (async () => {
+      setMidiGain(gainRef.current);
       await bootMidi();
       if (cancelled) return;
+      setMidiGain(gainRef.current);
       await playMidiUrl(src, true);
+      if (cancelled) return;
+      setMidiGain(gainRef.current);
     })();
     return () => {
       cancelled = true;
       stopMidi();
     };
-  }, [src]);
-
-  useEffect(() => {
-    setMidiGain(gain);
-  }, [gain]);
+  }, [src, audible]);
 
   return null;
 }

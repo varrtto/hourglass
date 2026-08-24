@@ -50,6 +50,7 @@ function isBlankRoomStub(room: Level): boolean {
     room.width === 32 &&
     room.height === 16 &&
     (room.bats?.length ?? 0) === 0 &&
+    (room.keres?.length ?? 0) === 0 &&
     (room.exits?.length ?? 0) === 0
   );
 }

@@ -87,7 +87,7 @@ export class LevelDirector {
       }
     }
 
-    if (!target) {
+    if (!target || !this.manifest.beats[target]) {
       this.playMode = "complete";
       this.emit();
       return this.getState();
@@ -104,7 +104,12 @@ export class LevelDirector {
     const beat = this.getBeat();
     if (!beat || beat.kind !== "room") return this.getState();
     const target = resolveTargetBeat(beat, exitId);
-    if (!target) return this.getState();
+    if (!target || !this.manifest.beats[target]) {
+      // No wired next beat (or dangling id) — finish the run cleanly.
+      this.playMode = "complete";
+      this.emit();
+      return this.getState();
+    }
     this.pendingSpawn = spawn ?? null;
     await this.enterBeat(target);
     return this.getState();
@@ -195,12 +200,19 @@ export class LevelDirector {
       }
       case "room": {
         this.playMode = "room";
-        let room = await this.loadRoomForBeat(beat);
-        if (this.pendingSpawn) {
-          room = { ...room, spawn: { ...this.pendingSpawn } };
+        try {
+          let room = await this.loadRoomForBeat(beat);
+          if (this.pendingSpawn) {
+            room = { ...room, spawn: { ...this.pendingSpawn } };
+            this.pendingSpawn = null;
+          }
+          this.room = room;
+        } catch {
+          // Missing / unloadable room — end the run instead of crashing playtest.
           this.pendingSpawn = null;
+          this.room = null;
+          this.playMode = "complete";
         }
-        this.room = room;
         break;
       }
     }

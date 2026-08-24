@@ -13,6 +13,16 @@ type MidiFilePlayer = {
   resume: () => void;
 };
 
+type AudioContextConstructor = {
+  new (): AudioContext;
+  prototype: AudioContext;
+};
+
+declare const webkitAudioContext: AudioContextConstructor | undefined;
+
+/** Keep in sync with store `musicVolume` default. */
+const DEFAULT_MUSIC_GAIN = 0.6;
+
 let boot: Promise<void> | null = null;
 let jzz: typeof JZZ | null = null;
 let out: MidiOut | null = null;
@@ -20,7 +30,7 @@ let gain: GainNode | null = null;
 let player: MidiFilePlayer | null = null;
 let playingSrc: string | null = null;
 let paused = false;
-let targetGain = 0.7;
+let targetGain = DEFAULT_MUSIC_GAIN;
 let disconnectPatched = false;
 
 /** jzz-synth-tiny disconnects chmod from oscillator.detune in onended; a second
@@ -45,6 +55,64 @@ function patchTinyDisconnect() {
   } as AudioNode["disconnect"];
 }
 
+/**
+ * TinySynth builds: voices → out → (convolver reverb) → DynamicsCompressor → dest.
+ * The compressor rides level down as the mix fills, and the reverb wet path adds
+ * energy after ~0.5–2s — both sound like a late volume change. During graph
+ * build we replace the compressor with a passthrough gain and mute the reverb send.
+ */
+async function withTinyGraphPatches<T>(fn: () => Promise<T>): Promise<T> {
+  if (typeof AudioContext === "undefined") return fn();
+
+  const contexts: AudioContextConstructor[] = [AudioContext];
+  if (typeof webkitAudioContext !== "undefined") {
+    contexts.push(webkitAudioContext);
+  }
+
+  const compressorOrig = new Map<
+    AudioContextConstructor,
+    AudioContext["createDynamicsCompressor"]
+  >();
+  for (const Ctor of contexts) {
+    compressorOrig.set(Ctor, Ctor.prototype.createDynamicsCompressor);
+    Ctor.prototype.createDynamicsCompressor = function (this: AudioContext) {
+      // Passthrough stand-in — Tiny only connect()s this node.
+      return this.createGain() as unknown as DynamicsCompressorNode;
+    };
+  }
+
+  const connectOrig = AudioNode.prototype.connect;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (AudioNode.prototype as any).connect = function (
+    this: AudioNode,
+    dest: AudioNode | AudioParam,
+    ...rest: number[]
+  ) {
+    if (
+      typeof ConvolverNode !== "undefined" &&
+      this instanceof ConvolverNode &&
+      dest instanceof GainNode
+    ) {
+      // Tiny: conv → rev(Gain); kill wet send so level doesn't bloom then settle.
+      dest.gain.value = 0;
+    }
+    return (connectOrig as (...args: unknown[]) => unknown).apply(this, [
+      dest,
+      ...rest,
+    ]);
+  };
+
+  try {
+    return await fn();
+  } finally {
+    AudioNode.prototype.connect = connectOrig;
+    for (const Ctor of contexts) {
+      const orig = compressorOrig.get(Ctor);
+      if (orig) Ctor.prototype.createDynamicsCompressor = orig;
+    }
+  }
+}
+
 function plugin(
   mod: { default?: (api: unknown) => void } | ((api: unknown) => void),
 ): (api: unknown) => void {
@@ -63,7 +131,7 @@ export function setMidiGain(value: number) {
   if (!gain) return;
   const t = gain.context.currentTime;
   gain.gain.cancelScheduledValues(t);
-  gain.gain.setTargetAtTime(targetGain, t, 0.03);
+  gain.gain.setValueAtTime(targetGain, t);
 }
 
 export function bootMidi(): Promise<void> {
@@ -83,18 +151,23 @@ export function bootMidi(): Promise<void> {
       gain.gain.value = targetGain;
       gain.connect(ac.destination);
       jzz.synth.Tiny.register("Orpheus");
-      await new Promise<void>((resolve, reject) => {
-        jzz!()
-          .openMidiOut("Orpheus")
-          .and(function (this: MidiOut) {
-            // JZZ binds the MIDI port as `this`.
-            // eslint-disable-next-line @typescript-eslint/no-this-alias
-            out = this;
-            this.plug(gain!);
-            resolve();
-          })
-          .or((err) => reject(err));
-      });
+      await withTinyGraphPatches(
+        () =>
+          new Promise<void>((resolve, reject) => {
+            jzz!()
+              .openMidiOut("Orpheus")
+              .and(function (this: MidiOut) {
+                // JZZ binds the MIDI port as `this`.
+                // eslint-disable-next-line @typescript-eslint/no-this-alias
+                out = this;
+                // plug() rebuilds Tiny's graph — keep patches active for this call.
+                this.plug(gain!);
+                gain!.gain.value = targetGain;
+                resolve();
+              })
+              .or((err) => reject(err));
+          }),
+      );
     })();
   }
   return boot;
@@ -121,6 +194,7 @@ export async function playMidiUrl(src: string, loop: boolean) {
   player = next;
   playingSrc = src;
   paused = false;
+  setMidiGain(targetGain);
 }
 
 export function pauseMidi() {

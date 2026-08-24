@@ -65,8 +65,14 @@ export type Player = {
   duckJumpBoosted: boolean;
 };
 
-/** Placement for a bat enemy (world tile units, center). */
+/** Placement for a spirit enemy (world tile units, center). Stored as `bat` in level JSON. */
 export type BatSpawn = {
+  x: number;
+  y: number;
+};
+
+/** Placement for a Keres (feet on floor; patrols 4 tiles left of home). */
+export type KeresSpawn = {
   x: number;
   y: number;
 };
@@ -89,10 +95,12 @@ export type Level = {
   tiles: TileId[];
   spawn: { x: number; y: number };
   bats: BatSpawn[];
+  /** Optional for older rooms; treat missing as []. */
+  keres?: KeresSpawn[];
   exits?: ExitZone[];
 };
 
-/** Live bat instance during play. */
+/** Live spirit instance during play (data key remains `bat`). */
 export type Bat = {
   homeX: number;
   homeY: number;
@@ -100,8 +108,29 @@ export type Bat = {
   y: number;
   dir: 1 | -1;
   alive: boolean;
-  /** Wing flap / bob phase in seconds. */
+  /** Bob / sway phase in seconds. */
   phase: number;
+};
+
+export type KeresPhase =
+  | "crawlLeft"
+  | "standLeft"
+  | "crawlRight"
+  | "standRight";
+
+/** Live Keres — crawls 4 tiles, stands, waits, returns. */
+export type Keres = {
+  homeX: number;
+  homeY: number;
+  x: number;
+  y: number;
+  dir: 1 | -1;
+  alive: boolean;
+  phase: KeresPhase;
+  /** Time spent in the current phase (seconds). */
+  timer: number;
+  /** Walk / idle animation phase. */
+  anim: number;
 };
 
 export type ProjectileKind = "bullet" | "slash";
@@ -125,6 +154,7 @@ export type World = {
   projectiles: Projectile[];
   fireCooldown: number;
   bats: Bat[];
+  keres: Keres[];
 };
 
 export const INVENTORY_SIZE = 5;

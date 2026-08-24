@@ -3,8 +3,9 @@ import type { Bat, BatSpawn, Kinematics, Level, World } from "../types";
 /** Patrol distance from home in tiles (left and right). */
 export const BAT_PATROL = 2;
 export const BAT_SPEED = 2.4;
-export const BAT_HALF_W = 0.38;
-export const BAT_HALF_H = 0.3;
+/** Spirit silhouette ~1 tile wide, 2 tiles tall (AABB half-extents). */
+export const BAT_HALF_W = 0.42;
+export const BAT_HALF_H = 1;
 /** Vertical bob amplitude in tiles. */
 const BAT_BOB = 0.12;
 const BAT_BOB_SPEED = 5;
@@ -89,7 +90,7 @@ export function resolveBatPlayerContact(world: World, k: Kinematics) {
   }
 }
 
-/** Bullets and sword slashes kill bats on overlap. */
+/** Bullets and sword slashes kill spirits on overlap. */
 export function resolveBatProjectileHits(world: World) {
   if (world.projectiles.length === 0) return;
 

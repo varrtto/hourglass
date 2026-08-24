@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useGameStore } from "../store";
 import { listLevels } from "../db/levelsRepo";
 import { BUILTIN_LEVEL_ID, type LevelSummary } from "../db/types";
@@ -20,7 +20,6 @@ export function CampaignEditorScreen() {
   const setStatus = useEditorSessionStore((s) => s.setStatus);
 
   const [leavePrompt, setLeavePrompt] = useState(false);
-  const addRef = useRef<HTMLSelectElement>(null);
 
   const libraryQuery = useQuery({
     queryKey: ["level-library"],
@@ -90,15 +89,6 @@ export function CampaignEditorScreen() {
 
   const removeAt = (index: number) => {
     patchCampaign({ levelIds: levelIds.filter((_, i) => i !== index) });
-  };
-
-  const addLevel = (id: string) => {
-    if (!id) return;
-    if (levelIds.includes(id)) {
-      setStatus("Level already in campaign");
-      return;
-    }
-    patchCampaign({ levelIds: [...levelIds, id] });
   };
 
   const editLevel = async (id: string) => {
@@ -237,39 +227,10 @@ export function CampaignEditorScreen() {
               ))}
               {levelIds.length === 0 ? (
                 <li className="font-mono text-xs text-amber-100/40">
-                  No levels yet — add from the library below.
+                  No levels yet — use New level to create one.
                 </li>
               ) : null}
             </ul>
-          </div>
-
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="min-w-0 flex-1">
-              <span className="font-mono text-[10px] tracking-wide text-amber-100/50 uppercase">
-                Add level
-              </span>
-              <select
-                ref={addRef}
-                defaultValue=""
-                className="mt-1 w-full rounded border border-amber-200/20 bg-black/40 px-2 py-2 font-mono text-sm text-amber-50"
-              >
-                <option value="">Select…</option>
-                {library.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.title} ({l.id})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <ToolBtn
-              onClick={() => {
-                const id = addRef.current?.value ?? "";
-                addLevel(id);
-                if (addRef.current) addRef.current.value = "";
-              }}
-            >
-              Add
-            </ToolBtn>
           </div>
         </div>
 

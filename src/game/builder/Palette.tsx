@@ -9,13 +9,15 @@ const TOOLS: { id: BuilderTool; label: string; key: string }[] = [
   { id: "ledge", label: "Ledge", key: "3" },
   { id: "spike", label: "Spike", key: "4" },
   { id: "spawn", label: "Spawn", key: "5" },
-  { id: "bat", label: "Bat", key: "6" },
+  { id: "bat", label: "Spirit", key: "6" },
+  { id: "keres", label: "Keres", key: "8" },
   { id: "exit", label: "Exit", key: "7" },
 ];
 
 function swatch(tool: BuilderTool): string {
   if (tool === "spawn") return "#e8c547";
-  if (tool === "bat") return "#6b5b95";
+  if (tool === "bat") return "#9ec8d4";
+  if (tool === "keres") return "#8b1e2d";
   if (tool === "exit") return "#3d8b6e";
   if (tool === "empty") return "#1a1410";
   return TILE_COLORS[TOOL_TILE[tool]];

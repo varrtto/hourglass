@@ -7,7 +7,7 @@ export const UNDO_CAP = 50;
 
 export type Snapshot = Pick<
   Level,
-  "width" | "height" | "tiles" | "spawn" | "bats" | "exits"
+  "width" | "height" | "tiles" | "spawn" | "bats" | "keres" | "exits"
 >;
 
 export function snapOf(level: Level): Snapshot {
@@ -17,6 +17,7 @@ export function snapOf(level: Level): Snapshot {
     tiles: [...level.tiles],
     spawn: { ...level.spawn },
     bats: (level.bats ?? []).map((b) => ({ ...b })),
+    keres: (level.keres ?? []).map((k) => ({ ...k })),
     exits: (level.exits ?? []).map((e) => ({ ...e })),
   };
 }
@@ -29,6 +30,7 @@ export function applySnap(id: string, snap: Snapshot): Level {
     tiles: [...snap.tiles],
     spawn: { ...snap.spawn },
     bats: snap.bats.map((b) => ({ ...b })),
+    keres: (snap.keres ?? []).map((k) => ({ ...k })),
     exits: (snap.exits ?? []).map((e) => ({ ...e })),
   };
 }
@@ -36,6 +38,12 @@ export function applySnap(id: string, snap: Snapshot): Level {
 export function findBatAt(level: Level, tx: number, ty: number): number {
   return (level.bats ?? []).findIndex(
     (b) => Math.floor(b.x) === tx && Math.floor(b.y) === ty,
+  );
+}
+
+export function findKeresAt(level: Level, tx: number, ty: number): number {
+  return (level.keres ?? []).findIndex(
+    (k) => Math.floor(k.x) === tx && Math.floor(k.y) === ty,
   );
 }
 
@@ -88,6 +96,20 @@ export function batInRect(level: Level, x: number, y: number, w: number, h: numb
   });
 }
 
+export function keresInRect(
+  level: Level,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): boolean {
+  return (level.keres ?? []).some((k) => {
+    const kx = Math.floor(k.x);
+    const ky = Math.floor(k.y);
+    return kx >= x && kx < x + w && ky >= y && ky < y + h;
+  });
+}
+
 export function spawnInRect(level: Level, x: number, y: number, w: number, h: number): boolean {
   const s = spawnTile(level);
   return s.x >= x && s.x < x + w && s.y >= y && s.y < y + h;
@@ -109,7 +131,8 @@ export function tilesClearInRect(
 }
 
 export function cellHasEntity(level: Level, tx: number, ty: number): string | null {
-  if (findBatAt(level, tx, ty) >= 0) return "bat";
+  if (findBatAt(level, tx, ty) >= 0) return "spirit";
+  if (findKeresAt(level, tx, ty) >= 0) return "keres";
   if (findExitAt(level, tx, ty) >= 0) return "exit";
   const s = spawnTile(level);
   if (s.x === tx && s.y === ty) return "spawn";
@@ -117,10 +140,20 @@ export function cellHasEntity(level: Level, tx: number, ty: number): string | nu
 }
 
 export function reasonCannotPlaceBat(level: Level, tx: number, ty: number): string | null {
-  if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place bat on a tile";
-  if (findExitAt(level, tx, ty) >= 0) return "Can't place bat on an exit";
+  if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place spirit on a tile";
+  if (findExitAt(level, tx, ty) >= 0) return "Can't place spirit on an exit";
+  if (findKeresAt(level, tx, ty) >= 0) return "Can't place spirit on a keres";
   const s = spawnTile(level);
-  if (s.x === tx && s.y === ty) return "Can't place bat on spawn";
+  if (s.x === tx && s.y === ty) return "Can't place spirit on spawn";
+  return null;
+}
+
+export function reasonCannotPlaceKeres(level: Level, tx: number, ty: number): string | null {
+  if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place keres on a tile";
+  if (findExitAt(level, tx, ty) >= 0) return "Can't place keres on an exit";
+  if (findBatAt(level, tx, ty) >= 0) return "Can't place keres on a spirit";
+  const s = spawnTile(level);
+  if (s.x === tx && s.y === ty) return "Can't place keres on spawn";
   return null;
 }
 
@@ -137,7 +170,8 @@ export function reasonCannotPlaceExit(
   if (!tilesClearInRect(level, x, y, w, h)) {
     return "Can't place exit over tiles";
   }
-  if (batInRect(level, x, y, w, h)) return "Can't place exit over a bat";
+  if (batInRect(level, x, y, w, h)) return "Can't place exit over a spirit";
+  if (keresInRect(level, x, y, w, h)) return "Can't place exit over a keres";
   if (spawnInRect(level, x, y, w, h)) return "Can't place exit over spawn";
   if (exitOverlapsRect(level, x, y, w, h)) return "Can't overlap another exit";
   return null;
@@ -145,7 +179,8 @@ export function reasonCannotPlaceExit(
 
 export function reasonCannotPlaceSpawn(level: Level, tx: number, ty: number): string | null {
   if (isBlockedTile(tileAt(level, tx, ty))) return "Can't place spawn on a tile";
-  if (findBatAt(level, tx, ty) >= 0) return "Can't place spawn on a bat";
+  if (findBatAt(level, tx, ty) >= 0) return "Can't place spawn on a spirit";
+  if (findKeresAt(level, tx, ty) >= 0) return "Can't place spawn on a keres";
   if (findExitAt(level, tx, ty) >= 0) return "Can't place spawn on an exit";
   return null;
 }

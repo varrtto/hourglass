@@ -153,6 +153,7 @@ export const useGameStore = create<GameStore>((set) => ({
         tiles: [...level.tiles],
         spawn: { ...level.spawn },
         bats: (level.bats ?? []).map((b) => ({ ...b })),
+        keres: (level.keres ?? []).map((k) => ({ ...k })),
         exits: (level.exits ?? []).map((e) => ({
           ...e,
           spawn: e.spawn ? { ...e.spawn } : undefined,

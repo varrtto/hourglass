@@ -22,6 +22,12 @@ import {
   resolveBatProjectileHits,
   stepBats,
 } from "../enemies/bat";
+import {
+  createKeres,
+  resolveKeresPlayerContact,
+  resolveKeresProjectileHits,
+  stepKeres,
+} from "../enemies/keres";
 
 export function createPlayer(level: Level, k: Kinematics): Player {
   return {
@@ -51,6 +57,7 @@ export function createWorld(level: Level, k: Kinematics): World {
     projectiles: [],
     fireCooldown: 0,
     bats: createBats(level),
+    keres: createKeres(level),
   };
 }
 
@@ -538,6 +545,7 @@ export function respawn(world: World, k: Kinematics) {
   world.projectiles = [];
   world.fireCooldown = 0;
   world.bats = createBats(world.level);
+  world.keres = createKeres(world.level);
 }
 
 export function stepWorld(
@@ -559,7 +567,9 @@ export function stepWorld(
   tryFireWeapon(world, input, k, selectedItem);
   stepProjectiles(world, dt);
   stepBats(world, dt);
+  stepKeres(world, dt);
   resolveBatProjectileHits(world);
+  resolveKeresProjectileHits(world);
 
   const dir = moveIntent(input);
   const onGround = grounded(world, k);
@@ -892,6 +902,7 @@ export function stepWorld(
     setState(p, "dead");
   }
   resolveBatPlayerContact(world, k);
+  resolveKeresPlayerContact(world, k);
 }
 
 export function snapshotDebug(

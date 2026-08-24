@@ -18,6 +18,7 @@ export function TileCanvas({
   onPaint,
   onPlaceSpawn,
   onPlaceBat,
+  onPlaceKeres,
   onPlaceExit,
   onErase,
   onHover,
@@ -28,6 +29,7 @@ export function TileCanvas({
   onPaint: (tx: number, ty: number, tile: TileId) => void;
   onPlaceSpawn: (tx: number, ty: number) => void;
   onPlaceBat: (tx: number, ty: number) => void;
+  onPlaceKeres: (tx: number, ty: number) => void;
   onPlaceExit: (tx: number, ty: number) => void;
   onErase: (tx: number, ty: number) => boolean;
   onHover: (hover: Hover) => void;
@@ -176,24 +178,50 @@ export function TileCanvas({
     for (const bat of lv.bats ?? []) {
       const bx = ox + bat.x * px;
       const by = oy + (lv.height - bat.y) * px;
-      const r = Math.max(3, px * 0.28);
-      ctx.fillStyle = "#6b5b95";
+      const halfW = px * 0.42;
+      const halfH = px; // 2 tiles tall
+      ctx.fillStyle = "rgba(198, 230, 236, 0.55)";
       ctx.beginPath();
-      ctx.ellipse(bx, by, r * 1.15, r * 0.7, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = "#4a3d6d";
-      ctx.beginPath();
-      ctx.moveTo(bx - r * 1.5, by);
-      ctx.quadraticCurveTo(bx - r * 0.7, by - r * 1.1, bx, by);
-      ctx.quadraticCurveTo(bx + r * 0.7, by - r * 1.1, bx + r * 1.5, by);
+      ctx.moveTo(bx - halfW, by - halfH * 0.35);
+      ctx.quadraticCurveTo(bx - halfW, by - halfH, bx, by - halfH);
+      ctx.quadraticCurveTo(bx + halfW, by - halfH, bx + halfW, by - halfH * 0.35);
+      ctx.lineTo(bx + halfW, by + halfH * 0.55);
+      ctx.quadraticCurveTo(bx + halfW * 0.5, by + halfH * 0.9, bx, by + halfH * 0.65);
+      ctx.quadraticCurveTo(bx - halfW * 0.5, by + halfH * 0.9, bx - halfW, by + halfH * 0.55);
       ctx.closePath();
       ctx.fill();
+      ctx.fillStyle = "rgba(12, 18, 28, 0.75)";
+      ctx.beginPath();
+      ctx.ellipse(bx - px * 0.14, by - halfH * 0.28, px * 0.08, px * 0.12, 0, 0, Math.PI * 2);
+      ctx.ellipse(bx + px * 0.14, by - halfH * 0.28, px * 0.08, px * 0.12, 0, 0, Math.PI * 2);
+      ctx.fill();
       // Patrol cue: ±2 tiles
-      ctx.strokeStyle = "rgba(107, 91, 149, 0.35)";
+      ctx.strokeStyle = "rgba(180, 220, 230, 0.35)";
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(bx - 2 * px, by);
       ctx.lineTo(bx + 2 * px, by);
+      ctx.stroke();
+    }
+
+    for (const unit of lv.keres ?? []) {
+      const kx = ox + unit.x * px;
+      const ky = oy + (lv.height - unit.y) * px;
+      const crawlH = px * 0.55;
+      ctx.fillStyle = "#8b1e2d";
+      ctx.beginPath();
+      ctx.ellipse(kx, ky - crawlH * 0.45, px * 0.55, crawlH * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#e8c547";
+      ctx.beginPath();
+      ctx.arc(kx + px * 0.35, ky - crawlH * 0.55, px * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      // Patrol cue: 4 tiles left of home
+      ctx.strokeStyle = "rgba(139, 30, 45, 0.4)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(kx - 4 * px, ky);
+      ctx.lineTo(kx, ky);
       ctx.stroke();
     }
 
@@ -292,6 +320,10 @@ export function TileCanvas({
       if (entityStroke.current) return;
       entityStroke.current = true;
       onPlaceBat(t.x, t.y);
+    } else if (current === "keres") {
+      if (entityStroke.current) return;
+      entityStroke.current = true;
+      onPlaceKeres(t.x, t.y);
     } else if (current === "exit") {
       if (entityStroke.current) return;
       entityStroke.current = true;
@@ -363,6 +395,7 @@ export function TileCanvas({
       painting.current &&
       current !== "spawn" &&
       current !== "bat" &&
+      current !== "keres" &&
       current !== "exit"
     ) {
       applyAt(mx, my);

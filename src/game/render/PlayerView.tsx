@@ -1,5 +1,6 @@
 import type { SpriteManifest } from "../queries";
-import type { Player, PlayerState, World } from "../types";
+import type { Keres, Player, PlayerState, World } from "../types";
+import { keresHeight } from "../enemies/keres";
 import { type Camera2D, worldToScreen } from "./LevelView";
 
 const STATE_TAG: Record<PlayerState, string> = {
@@ -159,37 +160,182 @@ export function drawBats(
   for (const bat of world.bats) {
     if (!bat.alive) continue;
     const p = worldToScreen(cam, bat.x, bat.y);
-    const flap = 0.55 + 0.45 * Math.sin(bat.phase * 14);
     const s = cam.ppt;
+    const sway = Math.sin(bat.phase * 3.2) * 0.04 * s;
+    const hem = Math.sin(bat.phase * 6) * 0.08 * s;
+    // AABB is 2 tiles tall centered on bat.y → screen extends ±1 tile from center.
+    const halfH = s;
+    const halfW = 0.42 * s;
+
     ctx.save();
-    ctx.translate(p.x, p.y);
+    ctx.translate(p.x + sway, p.y);
     ctx.scale(bat.dir, 1);
 
-    // Wings
-    ctx.fillStyle = "#4a3d6d";
+    // Soft glow
+    const glow = ctx.createRadialGradient(0, 0, halfW * 0.2, 0, 0, halfH * 1.15);
+    glow.addColorStop(0, "rgba(180, 220, 230, 0.22)");
+    glow.addColorStop(1, "rgba(180, 220, 230, 0)");
+    ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(-0.55 * s, -0.55 * s * flap, -0.85 * s, 0.05 * s);
-    ctx.quadraticCurveTo(-0.35 * s, 0.12 * s, 0, 0);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.quadraticCurveTo(0.55 * s, -0.55 * s * flap, 0.85 * s, 0.05 * s);
-    ctx.quadraticCurveTo(0.35 * s, 0.12 * s, 0, 0);
+    ctx.ellipse(0, 0, halfW * 1.55, halfH * 1.15, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body
-    ctx.fillStyle = "#6b5b95";
+    // Translucent body with wavy hem (ghost)
+    ctx.fillStyle = "rgba(198, 230, 236, 0.55)";
     ctx.beginPath();
-    ctx.ellipse(0, 0, 0.28 * s, 0.18 * s, 0, 0, Math.PI * 2);
+    ctx.moveTo(-halfW, -halfH * 0.35);
+    ctx.quadraticCurveTo(-halfW * 1.05, -halfH, 0, -halfH);
+    ctx.quadraticCurveTo(halfW * 1.05, -halfH, halfW, -halfH * 0.35);
+    ctx.lineTo(halfW, halfH * 0.55);
+    ctx.quadraticCurveTo(
+      halfW * 0.66,
+      halfH * 0.85 + hem,
+      halfW * 0.33,
+      halfH * 0.62,
+    );
+    ctx.quadraticCurveTo(0, halfH * 0.95 - hem, -halfW * 0.33, halfH * 0.62);
+    ctx.quadraticCurveTo(
+      -halfW * 0.66,
+      halfH * 0.85 + hem,
+      -halfW,
+      halfH * 0.55,
+    );
+    ctx.closePath();
     ctx.fill();
 
-    // Eye
-    ctx.fillStyle = "#e8c547";
+    // Inner highlight
+    ctx.fillStyle = "rgba(255, 255, 255, 0.18)";
     ctx.beginPath();
-    ctx.arc(0.1 * s, -0.04 * s, 0.05 * s, 0, Math.PI * 2);
+    ctx.ellipse(0, -halfH * 0.35, halfW * 0.45, halfH * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // Hollow eyes
+    ctx.fillStyle = "rgba(12, 18, 28, 0.85)";
+    ctx.beginPath();
+    ctx.ellipse(-0.14 * s, -halfH * 0.28, 0.09 * s, 0.14 * s, 0, 0, Math.PI * 2);
+    ctx.ellipse(0.14 * s, -halfH * 0.28, 0.09 * s, 0.14 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Faint mouth
+    ctx.strokeStyle = "rgba(12, 18, 28, 0.45)";
+    ctx.lineWidth = Math.max(1, s * 0.04);
+    ctx.beginPath();
+    ctx.arc(0, -halfH * 0.05, 0.1 * s, 0.15 * Math.PI, 0.85 * Math.PI);
+    ctx.stroke();
 
     ctx.restore();
   }
+}
+
+export function drawKeres(
+  ctx: CanvasRenderingContext2D,
+  cam: Camera2D,
+  world: World,
+) {
+  for (const k of world.keres) {
+    if (!k.alive) continue;
+    drawOneKeres(ctx, cam, k);
+  }
+}
+
+function drawOneKeres(
+  ctx: CanvasRenderingContext2D,
+  cam: Camera2D,
+  k: Keres,
+) {
+  const feet = worldToScreen(cam, k.x, k.y);
+  const s = cam.ppt;
+  const h = keresHeight(k);
+  const crawling = k.phase === "crawlLeft" || k.phase === "crawlRight";
+  const legPhase = k.anim * (crawling ? 10 : 2);
+
+  ctx.save();
+  ctx.translate(feet.x, feet.y);
+  ctx.scale(k.dir, 1);
+
+  const bodyColor = "#5c1a22";
+  const limbColor = "#3a1016";
+  const eyeColor = "#e8c547";
+
+  if (crawling) {
+    // Low torso
+    const bodyY = -0.28 * s;
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(0, bodyY, 0.55 * s, 0.2 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Four crawling legs
+    ctx.strokeStyle = limbColor;
+    ctx.lineWidth = Math.max(2, s * 0.08);
+    ctx.lineCap = "round";
+    for (const side of [-1, 1] as const) {
+      for (const pair of [0, 1] as const) {
+        const ox = side * (0.18 + pair * 0.22) * s;
+        const swing = Math.sin(legPhase + pair * Math.PI + (side < 0 ? 0.6 : 0)) * 0.18 * s;
+        ctx.beginPath();
+        ctx.moveTo(ox, bodyY + 0.05 * s);
+        ctx.quadraticCurveTo(
+          ox + side * 0.12 * s + swing,
+          bodyY + 0.22 * s,
+          ox + side * 0.2 * s - swing * 0.5,
+          -0.02 * s,
+        );
+        ctx.stroke();
+      }
+    }
+
+    // Head low
+    ctx.fillStyle = bodyColor;
+    ctx.beginPath();
+    ctx.ellipse(0.42 * s, bodyY - 0.06 * s, 0.18 * s, 0.16 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = eyeColor;
+    ctx.beginPath();
+    ctx.arc(0.5 * s, bodyY - 0.08 * s, 0.045 * s, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Standing biped
+    const top = -h * s;
+    ctx.fillStyle = bodyColor;
+    ctx.fillRect(-0.22 * s, top + 0.35 * s, 0.44 * s, h * s - 0.55 * s);
+
+    // Head
+    ctx.beginPath();
+    ctx.ellipse(0, top + 0.28 * s, 0.22 * s, 0.26 * s, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Arms hanging
+    ctx.strokeStyle = limbColor;
+    ctx.lineWidth = Math.max(2, s * 0.09);
+    ctx.lineCap = "round";
+    for (const side of [-1, 1] as const) {
+      ctx.beginPath();
+      ctx.moveTo(side * 0.22 * s, top + 0.55 * s);
+      ctx.quadraticCurveTo(
+        side * 0.38 * s,
+        top + 0.95 * s,
+        side * 0.28 * s,
+        top + 1.25 * s,
+      );
+      ctx.stroke();
+    }
+
+    // Legs
+    for (const side of [-1, 1] as const) {
+      ctx.beginPath();
+      ctx.moveTo(side * 0.1 * s, top + (h * s - 0.55 * s));
+      ctx.lineTo(side * 0.16 * s, -0.02 * s);
+      ctx.stroke();
+    }
+
+    // Eyes
+    ctx.fillStyle = eyeColor;
+    ctx.beginPath();
+    ctx.arc(-0.08 * s, top + 0.25 * s, 0.05 * s, 0, Math.PI * 2);
+    ctx.arc(0.08 * s, top + 0.25 * s, 0.05 * s, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }

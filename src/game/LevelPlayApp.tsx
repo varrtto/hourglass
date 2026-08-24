@@ -16,7 +16,6 @@ import {
 import { resolveLevelManifest, resolveRoom } from "./db/resolveLevel";
 import { useGameStore } from "./store";
 import { GameCanvas } from "./render/GameCanvas";
-import { ControlsHint } from "./render/DebugHud";
 import { InventoryHud } from "./render/InventoryHud";
 import { TimeLimitHud } from "./render/TimeLimitHud";
 import { TouchControls } from "./TouchControls";
@@ -84,15 +83,26 @@ export function LevelPlayApp() {
       playtestBeatId ?? undefined,
     );
     directorRef.current = director;
-    void director.start().then((state) => {
-      if (alive) {
+    void director
+      .start()
+      .then((state) => {
+        if (!alive) return;
         setDirectorState(state);
         setPlayMode(state.playMode);
         setBeatMusicId(
           musicForBeat(state.manifest.beats[state.beatId] ?? null),
         );
-      }
-    });
+      })
+      .catch(() => {
+        if (!alive) return;
+        // Boot failure (e.g. missing start room) — bail out of playtest.
+        if (playtestFromLevelEditor) {
+          setPlaytestFromLevelEditor(false);
+          setScreen("levelEditor");
+        } else {
+          setScreen("menu");
+        }
+      });
     const unsub = director.subscribe((state) => {
       setDirectorState(state);
       setPlayMode(state.playMode);
@@ -104,7 +114,17 @@ export function LevelPlayApp() {
       directorRef.current = null;
       setBeatMusicId(null);
     };
-  }, [manifest, loadRoom, playtestBeatId, playtestRevision, setPlayMode, setBeatMusicId]);
+  }, [
+    manifest,
+    loadRoom,
+    playtestBeatId,
+    playtestRevision,
+    playtestFromLevelEditor,
+    setPlayMode,
+    setBeatMusicId,
+    setPlaytestFromLevelEditor,
+    setScreen,
+  ]);
 
   useEffect(() => {
     if (directorState?.playMode === "complete") return;
@@ -124,6 +144,7 @@ export function LevelPlayApp() {
     if (directorState?.playMode !== "complete") return;
     const t = window.setTimeout(() => {
       if (playtestFromLevelEditor) {
+        setPlaytestFromLevelEditor(false);
         setScreen("levelEditor");
         return;
       }
@@ -139,6 +160,7 @@ export function LevelPlayApp() {
     directorState?.playMode,
     playtestFromLevelEditor,
     setScreen,
+    setPlaytestFromLevelEditor,
     advanceCampaignOrFinish,
   ]);
 
@@ -152,12 +174,22 @@ export function LevelPlayApp() {
   const failed = !useDraft && (manifestQuery.isError || !manifest);
 
   const handleExit = useCallback((exitId: string, spawn?: { x: number; y: number }) => {
-    void directorRef.current?.onExitTriggered(exitId, spawn);
-  }, []);
+    void directorRef.current?.onExitTriggered(exitId, spawn).catch(() => {
+      if (playtestFromLevelEditor) {
+        setPlaytestFromLevelEditor(false);
+        setScreen("levelEditor");
+      }
+    });
+  }, [playtestFromLevelEditor, setPlaytestFromLevelEditor, setScreen]);
 
   const skipScroll = useCallback(() => {
-    void directorRef.current?.skipScroll();
-  }, []);
+    void directorRef.current?.skipScroll().catch(() => {
+      if (playtestFromLevelEditor) {
+        setPlaytestFromLevelEditor(false);
+        setScreen("levelEditor");
+      }
+    });
+  }, [playtestFromLevelEditor, setPlaytestFromLevelEditor, setScreen]);
 
   const room = directorState?.room;
   const playMode = directorState?.playMode ?? "room";
@@ -229,9 +261,7 @@ export function LevelPlayApp() {
           <InventoryHud interactive={mobile} />
           {mobile ? (
             <TouchControls input={input} rotated={sideways} />
-          ) : (
-            <ControlsHint />
-          )}
+          ) : null}
         </>
       ) : null}
 

@@ -5,6 +5,7 @@ import {
   TILE_SPIKE,
   type BatSpawn,
   type ExitZone,
+  type KeresSpawn,
   type Level,
   type TileId,
 } from "../types";
@@ -97,6 +98,7 @@ export function tiledToLevel(id: string, map: TiledMap): Level {
 
   let spawn = { x: 2.5, y: 2 };
   const bats: BatSpawn[] = [];
+  const keres: KeresSpawn[] = [];
   const objects = map.layers.find((l) => l.type === "objectgroup")?.objects;
   const tw = map.tilewidth || 16;
   const th = map.tileheight || 16;
@@ -119,6 +121,13 @@ export function tiledToLevel(id: string, map: TiledMap): Level {
       });
       continue;
     }
+    if (obj.name === "keres" || obj.type === "keres") {
+      keres.push({
+        x: obj.x / tw + 0.5,
+        y: height - obj.y / th,
+      });
+      continue;
+    }
     if (obj.type === "exit" || obj.name === "exit") {
       const ew = (obj.width ?? tw) / tw;
       const eh = (obj.height ?? th) / th;
@@ -136,7 +145,7 @@ export function tiledToLevel(id: string, map: TiledMap): Level {
     }
   }
 
-  return { id, width, height, tiles, spawn, bats, exits };
+  return { id, width, height, tiles, spawn, bats, keres, exits };
 }
 
 /** Inverse of `tiledToLevel`: runtime y-up tiles → Tiled y-down JSON. */
@@ -166,7 +175,8 @@ export function levelToTiled(level: Level): TiledMap {
     type: "map",
     version: "1.10",
     nextlayerid: 3,
-    nextobjectid: 2 + (level.bats?.length ?? 0),
+    nextobjectid:
+      2 + (level.bats?.length ?? 0) + (level.keres?.length ?? 0),
     tilesets: [
       {
         firstgid: 1,
@@ -219,6 +229,15 @@ export function levelToTiled(level: Level): TiledMap {
             type: "bat",
             x: (bat.x - 0.5) * tw,
             y: (height - bat.y) * th,
+            width: tw,
+            height: th,
+          })),
+          ...(level.keres ?? []).map((unit, i) => ({
+            id: 50 + i,
+            name: "keres",
+            type: "keres",
+            x: (unit.x - 0.5) * tw,
+            y: (height - unit.y) * th,
             width: tw,
             height: th,
           })),

@@ -7,7 +7,7 @@ import { createWorld, snapshotDebug, stepWorld } from "../player/fsm";
 import type { Level, World } from "../types";
 import { useGameStore } from "../store";
 import { drawBackdrop, drawExits, drawLevel, type Camera2D } from "./LevelView";
-import { drawBats, drawPlayer, drawProjectiles } from "./PlayerView";
+import { drawBats, drawKeres, drawPlayer, drawProjectiles } from "./PlayerView";
 import { playSfx } from "../audio/sfx";
 import type { SpriteManifest } from "../queries";
 import { findExitTrigger } from "../world/loadLevel";
@@ -224,6 +224,7 @@ export function GameCanvas({
       drawLevel(ctx, cam, level);
       drawExits(ctx, cam, level);
       drawBats(ctx, cam, world);
+      drawKeres(ctx, cam, world);
       drawPlayer(
         ctx,
         cam,
