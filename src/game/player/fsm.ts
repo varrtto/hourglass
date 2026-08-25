@@ -186,31 +186,96 @@ function hangPose(
   };
 }
 
+/** True when tile `tx,ty` is a floor lip with empty space on the given outward side. */
+function isExposedLip(
+  level: World["level"],
+  tx: number,
+  ty: number,
+  /** Direction off the platform (away from solid). */
+  outward: 1 | -1,
+): boolean {
+  const cell = tileAt(level, tx, ty);
+  if (!isSolidTile(cell) && !isLedge(cell)) return false;
+  const above = tileAt(level, tx, ty + 1);
+  if (isSolidTile(above) || isSpike(above)) return false;
+  const neighbor = tileAt(level, tx + outward, ty);
+  if (isSolidTile(neighbor) || isLedge(neighbor)) return false;
+  return true;
+}
+
+/**
+ * Grab a ledge while jumping / falling.
+ * Handles both hanging from the lip and mantling when the head hits a flush underside.
+ */
 function findLedgeGrab(
   world: World,
   k: Kinematics,
 ): LedgeGrab | null {
   const p = world.player;
-  if (p.grabLock > 0 || p.vy > 1.2) return null;
+  if (p.grabLock > 0) return null;
 
-  const facings: Array<1 | -1> = [p.facing, p.facing === 1 ? -1 : 1];
+  const headY = p.y + p.height;
   const handY = p.y + p.height * 0.92;
-  for (const facing of facings) {
-    const front = p.x + facing * (k.bodyWidth * 0.5 + 0.08);
-    const tx = Math.floor(front);
-    const ty = Math.floor(handY);
-    const cell = tileAt(world.level, tx, ty);
-    const above = tileAt(world.level, tx, ty + 1);
-    if (!isSolidTile(cell) && !isLedge(cell)) continue;
-    if (isSolidTile(above)) continue;
-    const top = ty + 1;
-    const edgeX = facing > 0 ? tx : tx + 1;
-    if (Math.abs(handY - top) > k.hangReach) continue;
-    if (Math.abs(front - edgeX) > 0.55) continue;
-    const pose = hangPose(edgeX, top, facing, k.bodyWidth, p.height);
-    return { x: pose.x, y: pose.y, facing };
+  const risingHard = p.vy > 1.2;
+  // Classic hang: stick close to hangReach. Mantle uses its own underside window.
+  const grabReach = k.hangReach;
+
+  const tx0 = Math.floor(p.x - 0.75);
+  const tx1 = Math.floor(p.x + 0.75);
+  const ty0 = Math.floor(handY - grabReach);
+  const ty1 = Math.floor(headY + 0.2);
+
+  type Candidate = LedgeGrab & { score: number };
+  let best: Candidate | null = null;
+
+  for (let ty = ty0; ty <= ty1; ty++) {
+    for (let tx = tx0; tx <= tx1; tx++) {
+      const cell = tileAt(world.level, tx, ty);
+      if (!isSolidTile(cell) && !isLedge(cell)) continue;
+      const above = tileAt(world.level, tx, ty + 1);
+      if (isSolidTile(above) || isSpike(above)) continue;
+
+      const top = ty + 1;
+      const bottom = ty;
+      const nearLipTop = Math.abs(handY - top) <= grabReach;
+      // Head actually pressing the underside (ceiling bonk), not merely nearby.
+      const nearUnderside =
+        headY >= bottom - 0.04 && headY <= bottom + 0.18;
+      if (!nearLipTop && !nearUnderside) continue;
+      if (risingHard && !nearUnderside) continue;
+
+      for (const facing of [1, -1] as const) {
+        // facing +1: hang on left edge (tx), facing into platform.
+        // facing -1: hang on right edge (tx+1).
+        const outward = facing > 0 ? (-1 as const) : (1 as const);
+        if (!isExposedLip(world.level, tx, ty, outward)) continue;
+
+        const edgeX = facing > 0 ? tx : tx + 1;
+        const dist = Math.abs(p.x - edgeX);
+        const maxDist = nearUnderside ? 0.62 : 0.55;
+        if (dist > maxDist) continue;
+        // Must be on the outside of the lip (or just kissing it).
+        const onOutside =
+          facing > 0 ? p.x <= edgeX + 0.2 : p.x >= edgeX - 0.2;
+        if (!onOutside) continue;
+
+        const pose = hangPose(edgeX, top, facing, k.bodyWidth, p.height);
+        // Hang pose must fit beside the lip (chest in open air).
+        if (collides(world, pose.x, pose.y + 0.15, k.bodyWidth, p.height * 0.55, false)) {
+          continue;
+        }
+
+        // Prefer the facing the player is already using.
+        const facingBonus = facing === p.facing ? 0 : 0.25;
+        const score = dist + facingBonus;
+        if (!best || score < best.score) {
+          best = { x: pose.x, y: pose.y, facing, score };
+        }
+      }
+    }
   }
-  return null;
+
+  return best ? { x: best.x, y: best.y, facing: best.facing } : null;
 }
 
 function canStandAt(
@@ -710,7 +775,7 @@ export function stepWorld(
       const { hitY } = moveAxis(world, k, p.vx * dt, p.vy * dt);
       if (p.vy > 0 && hitY) p.vy = 0;
       const grab = !input.down ? findLedgeGrab(world, k) : null;
-      if (grab && p.vy <= 2) {
+      if (grab) {
         p.height = k.standHeight;
         p.facing = grab.facing;
         p.hang = { x: grab.x, y: grab.y };
