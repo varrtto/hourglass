@@ -102,8 +102,8 @@ export function MainMenu() {
   return (
     <MenuBackdrop>
       <div className="flex h-full flex-col justify-center px-5 py-5 sm:px-16 sm:py-10 lg:px-24">
-        <p className="font-display text-[10px] tracking-[0.4em] text-amber-200/70 uppercase sm:text-[11px] sm:tracking-[0.45em]">
-          A kinematic palace
+        <p className="font-display text-[10px] tracking-[0.4em] text-amber-200/70 sm:text-[11px] sm:tracking-[0.45em]">
+          A CHTHONIC Elegy
         </p>
         <h1 className="font-display mt-1 text-[1.85rem] leading-none font-semibold tracking-[0.08em] text-amber-50 sm:mt-2 sm:text-6xl sm:tracking-[0.1em] [@media(max-height:520px)]:text-[1.65rem]">
           ORPHEUS&apos; DESCENT
