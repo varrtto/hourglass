@@ -5,7 +5,7 @@ import { useMobile } from "@/hooks/useMobile";
 import { enterPlayViewport } from "../playViewport";
 import { type AppScreen, useGameStore } from "../store";
 import { MenuBackdrop } from "./MenuBackdrop";
-import { BUILTIN_LEVEL_ID, DEFAULT_CAMPAIGN_ID } from "../db/types";
+import { BUILTIN_LEVEL_IDS, DEFAULT_CAMPAIGN_ID } from "../db/types";
 import { getCampaign } from "../db/campaignsRepo";
 import { getDb } from "../db/sqlite";
 import { closeDesktopApp } from "../desktop";
@@ -34,7 +34,7 @@ export function MainMenu() {
           await getDb();
           const campaign = await getCampaign(DEFAULT_CAMPAIGN_ID);
           const levelIds =
-            campaign?.levelIds?.length ? campaign.levelIds : [BUILTIN_LEVEL_ID];
+            campaign?.levelIds?.length ? campaign.levelIds : [...BUILTIN_LEVEL_IDS];
           useGameStore
             .getState()
             .startCampaign(DEFAULT_CAMPAIGN_ID, levelIds, 0);

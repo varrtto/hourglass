@@ -1,0 +1,95 @@
+{
+  "id": "level-3",
+  "title": "The Fields of Asphodel",
+  "atmosphere": "asphodel",
+  "start": "intro",
+  "timeLimitSec": 3600,
+  "onTimeout": "timeout",
+  "beats": {
+    "intro": {
+      "kind": "scroll",
+      "id": "intro",
+      "name": "A Field Without Horizon",
+      "text": [
+        "The field had no horizon.",
+        "Asphodel grew in every direction, pale as bone, nodding though no wind moved.",
+        "Souls drifted through the flowers like breath on winter glass. They did not look at him. They did not look at one another.",
+        "Orpheus called for Eurydice.",
+        "The name went out and did not come back.",
+        "A shade paused — a woman, or the outline of one — and pointed, without turning her face, toward a dark mountain that had not been there a moment before.",
+        "Tartarus waited beneath that peak.",
+        "But first he had to cross the meadow of the forgotten."
+      ],
+      "next": "meadow",
+      "durationSec": 42
+    },
+    "meadow": {
+      "kind": "room",
+      "id": "meadow",
+      "name": "The Gray Meadow",
+      "roomId": "meadow",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "verse"
+      }
+    },
+    "verse": {
+      "kind": "scroll",
+      "id": "verse",
+      "name": "The Gray Road",
+      "text": [
+        "The gray road appeared only when he stopped looking for it.",
+        "Each step stirred a little dust that had once been a life.",
+        "He did not linger. To linger here was to become a flower."
+      ],
+      "next": "road",
+      "durationSec": 20
+    },
+    "road": {
+      "kind": "room",
+      "id": "road",
+      "name": "The Forgotten Road",
+      "roomId": "road",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "grove"
+      }
+    },
+    "grove": {
+      "kind": "room",
+      "id": "grove",
+      "name": "The Mourning Grove",
+      "roomId": "grove",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "outro"
+      }
+    },
+    "outro": {
+      "kind": "scroll",
+      "id": "outro",
+      "name": "The Wound in the World",
+      "text": [
+        "At the meadow's end the asphodel thinned, and the ground fell away.",
+        "Heat rose from a wound in the world.",
+        "The pit of Tartarus opened like a mouth that had never closed.",
+        "Even the nameless dead would not follow him there.",
+        "Orpheus tightened his grip on the lyre, and began to descend."
+      ],
+      "next": "",
+      "durationSec": 30
+    },
+    "timeout": {
+      "kind": "scroll",
+      "id": "timeout",
+      "name": "Time runs out",
+      "text": [
+        "The asphodel closed over his path.",
+        "He could no longer remember why he had come.",
+        "The hourglass emptied. A new flower nodded in the field."
+      ],
+      "next": "",
+      "durationSec": 22
+    }
+  }
+}

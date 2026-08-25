@@ -1,0 +1,99 @@
+{
+  "id": "level-2",
+  "title": "The River Styx",
+  "atmosphere": "styx",
+  "start": "intro",
+  "timeLimitSec": 3600,
+  "onTimeout": "timeout",
+  "beats": {
+    "intro": {
+      "kind": "scroll",
+      "id": "intro",
+      "name": "The Drowned Shore",
+      "text": [
+        "The lyre's last note faded at the threshold.",
+        "Orpheus stood alone. Hermes was gone. The living world was a rumor above the stone.",
+        "A mist rose from the dark, smelling of riverweed and old coins.",
+        "Before him stretched a shore of colorless sand. Shades huddled there, waiting without hope for a passage they could not pay.",
+        "Upon the black water a boat drifted, poled by a figure as old as dying.",
+        "Charon.",
+        "The ferryman did not speak. He did not need to. The living were not his cargo.",
+        "Orpheus lifted the lyre.",
+        "If stone had listened, and the hound of Hades had lain down, then perhaps even this grim boatman would hear a mortal's grief.",
+        "The mist closed in.",
+        "He stepped onto the drowned shore."
+      ],
+      "next": "shore",
+      "durationSec": 48
+    },
+    "shore": {
+      "kind": "room",
+      "id": "shore",
+      "name": "The Drowned Shore",
+      "roomId": "shore",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "verse"
+      }
+    },
+    "verse": {
+      "kind": "scroll",
+      "id": "verse",
+      "name": "The Crossing",
+      "text": [
+        "Charon's pole struck the water.",
+        "The boat did not refuse him.",
+        "Orpheus set his foot upon the crossing, and the river tried to remember his name, that it might keep it."
+      ],
+      "next": "crossing",
+      "durationSec": 22
+    },
+    "crossing": {
+      "kind": "room",
+      "id": "crossing",
+      "name": "Charon's Crossing",
+      "roomId": "crossing",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "far-bank"
+      }
+    },
+    "far-bank": {
+      "kind": "room",
+      "id": "far-bank",
+      "name": "The Far Bank",
+      "roomId": "far-bank",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "outro"
+      }
+    },
+    "outro": {
+      "kind": "scroll",
+      "id": "outro",
+      "name": "The Far Shore",
+      "text": [
+        "The far bank rose from the fog.",
+        "Charon turned his face away, as if mercy embarrassed him.",
+        "Beyond the reeds, a pale field opened — gray flowers that never died, and never truly lived.",
+        "Asphodel.",
+        "The dead walked there without memory.",
+        "Orpheus walked among them, calling a name they had forgotten."
+      ],
+      "next": "",
+      "durationSec": 32
+    },
+    "timeout": {
+      "kind": "scroll",
+      "id": "timeout",
+      "name": "Time runs out",
+      "text": [
+        "The Styx closed over his ankles.",
+        "Coins he did not have slipped through a darkness that would not give them back.",
+        "The hourglass emptied. The river kept him."
+      ],
+      "next": "",
+      "durationSec": 22
+    }
+  }
+}

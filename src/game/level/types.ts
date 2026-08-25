@@ -1,4 +1,4 @@
-import type { Level } from "../types";
+import type { AtmosphereId, Level } from "../types";
 
 export type PlayMode = "room" | "scroll" | "cinematic" | "complete";
 
@@ -57,6 +57,8 @@ export type LevelManifest = {
   timeLimitSec?: number;
   /** Beat to enter when the time limit expires (scroll, cinematic, room, etc.). */
   onTimeout?: string;
+  /** Default backdrop / tile palette for rooms in this level. */
+  atmosphere?: AtmosphereId;
 };
 
 export type DirectorState = {

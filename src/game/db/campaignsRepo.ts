@@ -2,8 +2,9 @@ import type { LevelManifest } from "../level/types";
 import { cloneManifest } from "../level/manifest";
 import { getLevel, upsertLevel } from "./levelsRepo";
 import {
-  BUILTIN_LEVEL_ID,
+  BUILTIN_LEVEL_IDS,
   DEFAULT_CAMPAIGN_ID,
+  isBuiltinLevel,
   nowIso,
   type Campaign,
   type CampaignPackage,
@@ -141,7 +142,7 @@ export async function duplicateDefaultCampaign(): Promise<Campaign> {
   const campaign: Campaign = {
     id,
     title: "Orpheus' Descent (copy)",
-    levelIds: [BUILTIN_LEVEL_ID],
+    levelIds: [...BUILTIN_LEVEL_IDS],
     updatedAt: nowIso(),
   };
   await upsertCampaign(campaign);
@@ -153,7 +154,7 @@ export async function exportCampaignPackage(id: string): Promise<CampaignPackage
   if (!campaign) throw new Error(`Campaign ${id} not found`);
   const levels: LevelManifest[] = [];
   for (const levelId of campaign.levelIds) {
-    if (levelId === BUILTIN_LEVEL_ID) continue;
+    if (isBuiltinLevel(levelId)) continue;
     const level = await getLevel(levelId);
     if (level) levels.push(cloneManifest(level));
   }
@@ -194,7 +195,7 @@ export async function importCampaignPackage(text: string): Promise<Campaign> {
   for (const level of parsed.levels) {
     if (!level?.id || !level.beats) continue;
     let manifest = cloneManifest(level);
-    if (manifest.id === BUILTIN_LEVEL_ID) {
+    if (isBuiltinLevel(manifest.id)) {
       manifest = {
         ...manifest,
         id: `${manifest.id}-import`,
@@ -213,14 +214,10 @@ export async function importCampaignPackage(text: string): Promise<Campaign> {
     id = `${id}-${Date.now().toString(36)}`;
   }
 
-  const levelIds = parsed.campaign.levelIds.map((lid) =>
-    lid === BUILTIN_LEVEL_ID ? BUILTIN_LEVEL_ID : lid,
-  );
-
   const campaign: Campaign = {
     id,
     title: parsed.campaign.title || "Imported campaign",
-    levelIds,
+    levelIds: parsed.campaign.levelIds,
     updatedAt: nowIso(),
   };
   await upsertCampaign(campaign);

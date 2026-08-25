@@ -1,6 +1,7 @@
 import initSqlJs, { type Database, type SqlJsStatic } from "sql.js";
 import {
   BUILTIN_LEVEL_ID,
+  BUILTIN_LEVEL_IDS,
   DEFAULT_CAMPAIGN_ID,
   nowIso,
 } from "./types";
@@ -103,23 +104,71 @@ function migrateSchema(db: Database) {
   `);
 }
 
-function seedDefaultCampaign(db: Database) {
+function ensureDefaultCampaign(db: Database) {
+  const ts = nowIso();
   const existing = queryOne<{ id: string }>(
     db,
     "SELECT id FROM campaigns WHERE id = ?",
     [DEFAULT_CAMPAIGN_ID],
   );
-  if (existing) return;
 
-  const ts = nowIso();
-  db.run(
-    "INSERT INTO campaigns (id, title, updated_at, builtin) VALUES (?, ?, ?, 1)",
-    [DEFAULT_CAMPAIGN_ID, "Orpheus' Descent", ts],
+  if (!existing) {
+    db.run(
+      "INSERT INTO campaigns (id, title, updated_at, builtin) VALUES (?, ?, ?, 1)",
+      [DEFAULT_CAMPAIGN_ID, "Orpheus' Descent", ts],
+    );
+    BUILTIN_LEVEL_IDS.forEach((levelId, index) => {
+      db.run(
+        "INSERT INTO campaign_levels (campaign_id, level_id, sort_index) VALUES (?, ?, ?)",
+        [DEFAULT_CAMPAIGN_ID, levelId, index],
+      );
+    });
+    return;
+  }
+
+  const links = queryAll<{ level_id: string; sort_index: number }>(
+    db,
+    "SELECT level_id, sort_index FROM campaign_levels WHERE campaign_id = ? ORDER BY sort_index ASC",
+    [DEFAULT_CAMPAIGN_ID],
   );
-  db.run(
-    "INSERT INTO campaign_levels (campaign_id, level_id, sort_index) VALUES (?, ?, 0)",
-    [DEFAULT_CAMPAIGN_ID, BUILTIN_LEVEL_ID],
-  );
+  const ids = links.map((l) => l.level_id);
+  const onlyOriginalSeed = ids.length === 1 && ids[0] === BUILTIN_LEVEL_ID;
+
+  if (onlyOriginalSeed) {
+    db.run("DELETE FROM campaign_levels WHERE campaign_id = ?", [
+      DEFAULT_CAMPAIGN_ID,
+    ]);
+    BUILTIN_LEVEL_IDS.forEach((levelId, index) => {
+      db.run(
+        "INSERT INTO campaign_levels (campaign_id, level_id, sort_index) VALUES (?, ?, ?)",
+        [DEFAULT_CAMPAIGN_ID, levelId, index],
+      );
+    });
+    db.run("UPDATE campaigns SET updated_at = ? WHERE id = ?", [
+      ts,
+      DEFAULT_CAMPAIGN_ID,
+    ]);
+    return;
+  }
+
+  let nextIndex =
+    links.reduce((max, row) => Math.max(max, row.sort_index), -1) + 1;
+  let added = false;
+  for (const levelId of BUILTIN_LEVEL_IDS) {
+    if (ids.includes(levelId)) continue;
+    db.run(
+      "INSERT INTO campaign_levels (campaign_id, level_id, sort_index) VALUES (?, ?, ?)",
+      [DEFAULT_CAMPAIGN_ID, levelId, nextIndex],
+    );
+    nextIndex += 1;
+    added = true;
+  }
+  if (added) {
+    db.run("UPDATE campaigns SET updated_at = ? WHERE id = ?", [
+      ts,
+      DEFAULT_CAMPAIGN_ID,
+    ]);
+  }
 }
 
 export async function getDb(): Promise<Database> {
@@ -129,7 +178,7 @@ export async function getDb(): Promise<Database> {
       const bytes = await readPersistedBytes();
       const db = bytes ? new SQL.Database(bytes) : new SQL.Database();
       migrateSchema(db);
-      seedDefaultCampaign(db);
+      ensureDefaultCampaign(db);
       await persistDb(db);
       return db;
     })();

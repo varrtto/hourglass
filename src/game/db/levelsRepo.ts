@@ -1,6 +1,6 @@
 import type { LevelManifest } from "../level/types";
 import { cloneManifest, parseManifestJson } from "../level/manifest";
-import { BUILTIN_LEVEL_ID, nowIso, type LevelSummary } from "./types";
+import { isBuiltinLevel, nowIso, type LevelSummary } from "./types";
 import { getDb, persistDb, queryAll, queryOne } from "./sqlite";
 
 export async function listLevels(): Promise<LevelSummary[]> {
@@ -18,7 +18,7 @@ export async function listLevels(): Promise<LevelSummary[]> {
 }
 
 export async function getLevel(id: string): Promise<LevelManifest | null> {
-  if (id === BUILTIN_LEVEL_ID) return null;
+  if (isBuiltinLevel(id)) return null;
   const db = await getDb();
   const row = queryOne<{ json: string }>(db, "SELECT json FROM levels WHERE id = ?", [
     id,
@@ -28,8 +28,8 @@ export async function getLevel(id: string): Promise<LevelManifest | null> {
 }
 
 export async function upsertLevel(manifest: LevelManifest): Promise<void> {
-  if (manifest.id === BUILTIN_LEVEL_ID) {
-    throw new Error("Cannot overwrite the built-in level in the database");
+  if (isBuiltinLevel(manifest.id)) {
+    throw new Error("Cannot overwrite a built-in level in the database");
   }
   const db = await getDb();
   const json = JSON.stringify(cloneManifest(manifest));
@@ -43,8 +43,8 @@ export async function upsertLevel(manifest: LevelManifest): Promise<void> {
 }
 
 export async function deleteLevel(id: string): Promise<void> {
-  if (id === BUILTIN_LEVEL_ID) {
-    throw new Error("Cannot delete the built-in level");
+  if (isBuiltinLevel(id)) {
+    throw new Error("Cannot delete a built-in level");
   }
   const db = await getDb();
   db.run("DELETE FROM levels WHERE id = ?", [id]);
@@ -54,7 +54,7 @@ export async function deleteLevel(id: string): Promise<void> {
 
 export async function importLevelJson(text: string): Promise<LevelManifest> {
   const manifest = parseManifestJson(text);
-  if (manifest.id === BUILTIN_LEVEL_ID) {
+  if (isBuiltinLevel(manifest.id)) {
     manifest.id = `${manifest.id}-copy`;
     manifest.title = `${manifest.title} (copy)`;
   }

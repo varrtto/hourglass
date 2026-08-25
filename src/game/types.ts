@@ -19,6 +19,15 @@ export const TILE_SOLID = 1 as const;
 export const TILE_LEDGE = 2 as const;
 export const TILE_SPIKE = 3 as const;
 
+/** Visual theme for a room / level of the Underworld. */
+export type AtmosphereId =
+  | "hades"
+  | "styx"
+  | "asphodel"
+  | "tartarus"
+  | "palace"
+  | "ascent";
+
 export type Kinematics = {
   walkSpeed: number;
   runSpeed: number;
@@ -98,6 +107,8 @@ export type Level = {
   /** Optional for older rooms; treat missing as []. */
   keres?: KeresSpawn[];
   exits?: ExitZone[];
+  /** Palette / backdrop for this chamber. */
+  atmosphere?: AtmosphereId;
 };
 
 /** Live spirit instance during play (data key remains `bat`). */

@@ -1,0 +1,97 @@
+{
+  "id": "level-5",
+  "title": "The Palace of Hades",
+  "atmosphere": "palace",
+  "start": "intro",
+  "timeLimitSec": 3600,
+  "onTimeout": "timeout",
+  "beats": {
+    "intro": {
+      "kind": "scroll",
+      "id": "intro",
+      "name": "The Cold Thrones",
+      "text": [
+        "The palace was beautiful in the way a tomb is beautiful: every surface finished, and none of it warm.",
+        "Black marble. Gold that did not shine so much as endure. Braziers that burned without smoke.",
+        "Two thrones. Upon one, Hades, unmoving as a law. Upon the other, Persephone, who still remembered spring.",
+        "Orpheus did not kneel. He played.",
+        "The song was not a plea at first. It was Eurydice: her step in the grass, the way she had listened, the silence after the serpent.",
+        "Persephone's hands closed on the arms of her throne.",
+        "Even the King of the Dead leaned forward, as if the music had found a door he had locked himself.",
+        "The court of shades parted.",
+        "Orpheus walked toward the thrones."
+      ],
+      "next": "court",
+      "durationSec": 50
+    },
+    "court": {
+      "kind": "room",
+      "id": "court",
+      "name": "The Outer Court",
+      "roomId": "court",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "verse"
+      }
+    },
+    "verse": {
+      "kind": "scroll",
+      "id": "verse",
+      "name": "The Hall of Shades",
+      "text": [
+        "The hall of shades watched without eyes.",
+        "Every step was a verse. Every pause, a grave.",
+        "He would not stop until the king had heard the last note."
+      ],
+      "next": "hall",
+      "durationSec": 20
+    },
+    "hall": {
+      "kind": "room",
+      "id": "hall",
+      "name": "Hall of Shades",
+      "roomId": "hall",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "throne"
+      }
+    },
+    "throne": {
+      "kind": "room",
+      "id": "throne",
+      "name": "The Throne Approach",
+      "roomId": "throne",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "outro"
+      }
+    },
+    "outro": {
+      "kind": "scroll",
+      "id": "outro",
+      "name": "The Bargain",
+      "text": [
+        "Hades spoke, and the palace listened.",
+        "—She may follow you. Walk before her. Do not look back until both of you stand in the living sun.",
+        "Persephone added nothing. Her face was the face of someone who had been looked-for, once.",
+        "Behind Orpheus, a footstep. Soft. Certain.",
+        "Eurydice.",
+        "He did not turn. He began the long walk up."
+      ],
+      "next": "",
+      "durationSec": 36
+    },
+    "timeout": {
+      "kind": "scroll",
+      "id": "timeout",
+      "name": "Time runs out",
+      "text": [
+        "The thrones did not wait for mortals.",
+        "Judgment, once offered, was withdrawn.",
+        "The hourglass emptied. The palace returned to silence."
+      ],
+      "next": "",
+      "durationSec": 22
+    }
+  }
+}

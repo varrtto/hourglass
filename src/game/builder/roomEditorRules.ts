@@ -7,7 +7,7 @@ export const UNDO_CAP = 50;
 
 export type Snapshot = Pick<
   Level,
-  "width" | "height" | "tiles" | "spawn" | "bats" | "keres" | "exits"
+  "width" | "height" | "tiles" | "spawn" | "bats" | "keres" | "exits" | "atmosphere"
 >;
 
 export function snapOf(level: Level): Snapshot {
@@ -19,6 +19,7 @@ export function snapOf(level: Level): Snapshot {
     bats: (level.bats ?? []).map((b) => ({ ...b })),
     keres: (level.keres ?? []).map((k) => ({ ...k })),
     exits: (level.exits ?? []).map((e) => ({ ...e })),
+    atmosphere: level.atmosphere,
   };
 }
 
@@ -32,6 +33,7 @@ export function applySnap(id: string, snap: Snapshot): Level {
     bats: snap.bats.map((b) => ({ ...b })),
     keres: (snap.keres ?? []).map((k) => ({ ...k })),
     exits: (snap.exits ?? []).map((e) => ({ ...e })),
+    atmosphere: snap.atmosphere,
   };
 }
 

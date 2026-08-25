@@ -14,6 +14,7 @@ export function cloneLevel(level: Level): Level {
       ...e,
       spawn: e.spawn ? { ...e.spawn } : undefined,
     })),
+    atmosphere: level.atmosphere,
   };
 }
 
@@ -32,6 +33,7 @@ export function cloneManifest(m: LevelManifest): LevelManifest {
       : undefined,
     timeLimitSec: m.timeLimitSec,
     onTimeout: m.onTimeout,
+    atmosphere: m.atmosphere,
   };
 }
 

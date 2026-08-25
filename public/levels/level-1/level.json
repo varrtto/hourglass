@@ -1,6 +1,7 @@
 {
   "id": "level-1",
   "title": "The Gate of Hades",
+  "atmosphere": "hades",
   "start": "intro",
   "timeLimitSec": 3600,
   "onTimeout": "timeout",
@@ -53,11 +54,14 @@
       "id": "outro",
       "name": "Outro",
       "text": [
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-        "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+        "The three-headed hound lay still, soothed by the lyre.",
+        "Beyond the gate the air grew cold and wet, as if the stone itself were drowning.",
+        "Orpheus heard it then: a river, black as forgotten names.",
+        "The Styx.",
+        "He walked toward the sound of oars."
       ],
       "next": "",
-      "durationSec": 18
+      "durationSec": 28
     },
     "timeout": {
       "kind": "scroll",

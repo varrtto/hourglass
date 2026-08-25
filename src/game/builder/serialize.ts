@@ -54,6 +54,7 @@ export function cloneLevel(level: Level): Level {
       ...e,
       spawn: e.spawn ? { ...e.spawn } : undefined,
     })),
+    atmosphere: level.atmosphere,
   };
 }
 

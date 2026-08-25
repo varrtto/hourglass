@@ -1,6 +1,6 @@
 import type { LevelManifest } from "../level/types";
 import { cloneManifest } from "../level/manifest";
-import { BUILTIN_LEVEL_ID } from "./types";
+import { isBuiltinLevel } from "./types";
 import { getLevel } from "./levelsRepo";
 import { fetchLevelManifest, fetchRoomMap } from "../queries";
 import { tiledToLevel } from "../world/loadLevel";
@@ -9,8 +9,8 @@ import { tiledToLevel } from "../world/loadLevel";
 export async function resolveLevelManifest(
   levelId: string,
 ): Promise<LevelManifest> {
-  if (levelId === BUILTIN_LEVEL_ID) {
-    return fetchLevelManifest(BUILTIN_LEVEL_ID);
+  if (isBuiltinLevel(levelId)) {
+    return fetchLevelManifest(levelId);
   }
   const fromDb = await getLevel(levelId);
   if (fromDb) return cloneManifest(fromDb);
@@ -23,7 +23,12 @@ export async function resolveRoom(
   roomId: string,
 ) {
   const embedded = manifest.rooms?.[roomId];
-  if (embedded) return embedded;
+  if (embedded) {
+    const atmosphere = embedded.atmosphere ?? manifest.atmosphere;
+    return atmosphere ? { ...embedded, atmosphere } : embedded;
+  }
   const map = await fetchRoomMap(manifest.id, roomId);
-  return tiledToLevel(roomId, map);
+  const room = tiledToLevel(roomId, map);
+  const atmosphere = room.atmosphere ?? manifest.atmosphere;
+  return atmosphere ? { ...room, atmosphere } : room;
 }

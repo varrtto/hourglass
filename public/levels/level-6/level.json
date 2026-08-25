@@ -1,0 +1,99 @@
+{
+  "id": "level-6",
+  "title": "The Ascent",
+  "atmosphere": "ascent",
+  "start": "intro",
+  "timeLimitSec": 3600,
+  "onTimeout": "timeout",
+  "beats": {
+    "intro": {
+      "kind": "scroll",
+      "id": "intro",
+      "name": "Do Not Look Back",
+      "text": [
+        "The path climbed.",
+        "Behind him, always behind him, the sound of her step — a little late, as if the dead walked in a slower hour.",
+        "He wanted to speak. He wanted to see her face, to know the bargain was not a cruelty.",
+        "The law was simple. He did not look.",
+        "The dark began to thin. A rumor of sky. A warmth that might have been morning.",
+        "Almost.",
+        "The lyre hung silent now. There was nothing left to play but the distance between them.",
+        "He climbed."
+      ],
+      "next": "winding",
+      "durationSec": 44
+    },
+    "winding": {
+      "kind": "room",
+      "id": "winding",
+      "name": "The Winding Stair",
+      "roomId": "winding",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "verse"
+      }
+    },
+    "verse": {
+      "kind": "scroll",
+      "id": "verse",
+      "name": "Almost the Sun",
+      "text": [
+        "Light gathered at the mouth of the world.",
+        "Her footsteps seemed farther. Or nearer. He could not tell.",
+        "Do not turn. Do not turn. Do not—"
+      ],
+      "next": "threshold",
+      "durationSec": 18
+    },
+    "threshold": {
+      "kind": "room",
+      "id": "threshold",
+      "name": "The Threshold of Light",
+      "roomId": "threshold",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "last-look"
+      }
+    },
+    "last-look": {
+      "kind": "room",
+      "id": "last-look",
+      "name": "The Last Look",
+      "roomId": "last-look",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "outro"
+      }
+    },
+    "outro": {
+      "kind": "scroll",
+      "id": "outro",
+      "name": "The Glance",
+      "text": [
+        "He turned.",
+        "She was there: almost in the sun, almost his.",
+        "Eurydice looked at him with a love that had no more time in it.",
+        "—Farewell.",
+        "The dark took her as gently as a hand taking a bird.",
+        "Orpheus reached, and closed on nothing.",
+        "The living world received him. The trees did not bend. The beasts did not gather.",
+        "He had his lyre. He had the silence.",
+        "And that was all."
+      ],
+      "next": "",
+      "durationSec": 42
+    },
+    "timeout": {
+      "kind": "scroll",
+      "id": "timeout",
+      "name": "Time runs out",
+      "text": [
+        "He did not know if she was still behind him.",
+        "The doubt became a glance. The glance became the end.",
+        "The hourglass emptied. The path remembered only one set of footprints."
+      ],
+      "next": "",
+      "durationSec": 22
+    }
+  }
+}

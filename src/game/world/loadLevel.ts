@@ -3,6 +3,7 @@ import {
   TILE_LEDGE,
   TILE_SOLID,
   TILE_SPIKE,
+  type AtmosphereId,
   type BatSpawn,
   type ExitZone,
   type KeresSpawn,
@@ -44,6 +45,12 @@ export type TiledTileset = {
   tiles: Array<{ id: number; type: string }>;
 };
 
+export type TiledProperty = {
+  name: string;
+  type?: string;
+  value: string | number | boolean;
+};
+
 export type TiledMap = {
   width: number;
   height: number;
@@ -60,7 +67,25 @@ export type TiledMap = {
   nextlayerid?: number;
   nextobjectid?: number;
   tilesets?: TiledTileset[];
+  properties?: TiledProperty[];
 };
+
+const ATMOSPHERE_IDS: AtmosphereId[] = [
+  "hades",
+  "styx",
+  "asphodel",
+  "tartarus",
+  "palace",
+  "ascent",
+];
+
+function atmosphereFromMap(map: TiledMap): AtmosphereId | undefined {
+  const raw = map.properties?.find((p) => p.name === "atmosphere")?.value;
+  if (typeof raw !== "string") return undefined;
+  return ATMOSPHERE_IDS.includes(raw as AtmosphereId)
+    ? (raw as AtmosphereId)
+    : undefined;
+}
 
 function gidToTile(gid: number): TileId {
   if (gid === 1) return TILE_SOLID;
@@ -145,7 +170,8 @@ export function tiledToLevel(id: string, map: TiledMap): Level {
     }
   }
 
-  return { id, width, height, tiles, spawn, bats, keres, exits };
+  const atmosphere = atmosphereFromMap(map);
+  return { id, width, height, tiles, spawn, bats, keres, exits, atmosphere };
 }
 
 /** Inverse of `tiledToLevel`: runtime y-up tiles → Tiled y-down JSON. */
@@ -177,6 +203,13 @@ export function levelToTiled(level: Level): TiledMap {
     nextlayerid: 3,
     nextobjectid:
       2 + (level.bats?.length ?? 0) + (level.keres?.length ?? 0),
+    ...(level.atmosphere
+      ? {
+          properties: [
+            { name: "atmosphere", type: "string", value: level.atmosphere },
+          ],
+        }
+      : {}),
     tilesets: [
       {
         firstgid: 1,

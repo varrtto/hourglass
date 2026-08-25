@@ -8,7 +8,7 @@ import {
 } from "../level/manifest";
 import { createBlankLevel } from "../builder/serialize";
 import type { Campaign } from "../db/types";
-import { BUILTIN_LEVEL_ID, nowIso } from "../db/types";
+import { isBuiltinLevel, nowIso } from "../db/types";
 import { getLevel, upsertLevel } from "../db/levelsRepo";
 import { getCampaign, upsertCampaign } from "../db/campaignsRepo";
 import { fetchLevelManifest, fetchRoomMap } from "../queries";
@@ -124,8 +124,8 @@ export const useEditorSessionStore = create<EditorSessionState>((set, get) => ({
   },
 
   openLevel: async (id) => {
-    if (id === BUILTIN_LEVEL_ID) {
-      const manifest = await fetchLevelManifest(BUILTIN_LEVEL_ID);
+    if (isBuiltinLevel(id)) {
+      const manifest = await fetchLevelManifest(id);
       set({
         levelDraft: cloneManifest(manifest),
         dirtyLevel: false,
@@ -159,7 +159,7 @@ export const useEditorSessionStore = create<EditorSessionState>((set, get) => ({
   saveLevel: async () => {
     const draft = get().levelDraft;
     if (!draft) return;
-    if (draft.id === BUILTIN_LEVEL_ID) {
+    if (isBuiltinLevel(draft.id)) {
       const copy = cloneManifest({
         ...draft,
         id: `${draft.id}-custom`,

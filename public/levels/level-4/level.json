@@ -1,0 +1,95 @@
+{
+  "id": "level-4",
+  "title": "Tartarus",
+  "atmosphere": "tartarus",
+  "start": "intro",
+  "timeLimitSec": 3600,
+  "onTimeout": "timeout",
+  "beats": {
+    "intro": {
+      "kind": "scroll",
+      "id": "intro",
+      "name": "The Pit",
+      "text": [
+        "They say even the gods lower their voices when they speak of Tartarus.",
+        "Here the Titans were chained. Here oath-breakers learned the length of forever.",
+        "The air tasted of iron and old fire. The walls were not built; they were the inside of a wound.",
+        "Orpheus's song, which had quieted Cerberus and Charon, now had to pass through screaming.",
+        "He played anyway.",
+        "Somewhere above this pit, in a palace of cold gold, Hades sat in judgment.",
+        "And somewhere in that palace — he told himself — Eurydice waited to hear him.",
+        "The stair went down."
+      ],
+      "next": "stair",
+      "durationSec": 44
+    },
+    "stair": {
+      "kind": "room",
+      "id": "stair",
+      "name": "The Iron Stair",
+      "roomId": "stair",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "verse"
+      }
+    },
+    "verse": {
+      "kind": "scroll",
+      "id": "verse",
+      "name": "The Chains",
+      "text": [
+        "The chains sang when he passed, a music older than his own.",
+        "He would not answer it.",
+        "He climbed when the pit wanted him to fall."
+      ],
+      "next": "vaults",
+      "durationSec": 18
+    },
+    "vaults": {
+      "kind": "room",
+      "id": "vaults",
+      "name": "The Chain Vaults",
+      "roomId": "vaults",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "pit-edge"
+      }
+    },
+    "pit-edge": {
+      "kind": "room",
+      "id": "pit-edge",
+      "name": "The Pit's Edge",
+      "roomId": "pit-edge",
+      "music": "Moonspell - Vampiria.mid",
+      "onExit": {
+        "finish": "outro"
+      }
+    },
+    "outro": {
+      "kind": "scroll",
+      "id": "outro",
+      "name": "The Palace Light",
+      "text": [
+        "At the pit's rim, the screaming thinned.",
+        "His last notes hung in the heat like a mercy the place did not deserve.",
+        "Above him, black marble caught a light that was not the sun.",
+        "The Palace of Hades.",
+        "Orpheus climbed toward the throne of the dead, carrying nothing but a lyre and a name."
+      ],
+      "next": "",
+      "durationSec": 28
+    },
+    "timeout": {
+      "kind": "scroll",
+      "id": "timeout",
+      "name": "Time runs out",
+      "text": [
+        "The chains found him.",
+        "Tartarus does not bargain, and it does not forget.",
+        "The hourglass emptied. The pit was pleased."
+      ],
+      "next": "",
+      "durationSec": 22
+    }
+  }
+}

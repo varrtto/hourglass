@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useState } from "react";
 import { useGameStore } from "../store";
 import { listLevels } from "../db/levelsRepo";
-import { BUILTIN_LEVEL_ID, type LevelSummary } from "../db/types";
+import { BUILTIN_LEVELS, isBuiltinLevel, type LevelSummary } from "../db/types";
 import { useEditorSessionStore } from "../editor/editorSessionStore";
 import { MenuBackdrop } from "./MenuBackdrop";
 
@@ -26,13 +26,13 @@ export function CampaignEditorScreen() {
     queryFn: async (): Promise<LevelSummary[]> => {
       const levels = await listLevels();
       return [
-        {
-          id: BUILTIN_LEVEL_ID,
-          title: "The Gate of Hades (built-in)",
+        ...BUILTIN_LEVELS.map((l) => ({
+          id: l.id,
+          title: `${l.title} (built-in)`,
           updatedAt: "",
           builtin: true,
-        },
-        ...levels,
+        })),
+        ...levels.filter((l) => !isBuiltinLevel(l.id)),
       ];
     },
   });
