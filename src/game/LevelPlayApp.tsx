@@ -140,22 +140,31 @@ export function LevelPlayApp() {
     return () => cancelAnimationFrame(raf);
   }, [directorState?.playMode, directorState?.beatId]);
 
+  // Wall-clock timer keep-alive: rAF pauses in background tabs.
+  useEffect(() => {
+    if (directorState?.playMode === "complete") return;
+    const pulse = () => directorRef.current?.tickTime();
+    const id = window.setInterval(pulse, 250);
+    document.addEventListener("visibilitychange", pulse);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", pulse);
+    };
+  }, [directorState?.playMode, directorState?.beatId]);
+
   useEffect(() => {
     if (directorState?.playMode !== "complete") return;
-    const t = window.setTimeout(() => {
-      if (playtestFromLevelEditor) {
-        setPlaytestFromLevelEditor(false);
-        setScreen("levelEditor");
-        return;
-      }
-      const result = advanceCampaignOrFinish();
-      if (result === "next") {
-        setDirectorState(null);
-        return;
-      }
-      setScreen("menu");
-    }, 1200);
-    return () => window.clearTimeout(t);
+    if (playtestFromLevelEditor) {
+      setPlaytestFromLevelEditor(false);
+      setScreen("levelEditor");
+      return;
+    }
+    const result = advanceCampaignOrFinish();
+    if (result === "next") {
+      setDirectorState(null);
+      return;
+    }
+    setScreen("menu");
   }, [
     directorState?.playMode,
     playtestFromLevelEditor,
@@ -206,12 +215,6 @@ export function LevelPlayApp() {
         <p className="p-6 font-mono text-amber-100">Loading level…</p>
       ) : failed || !manifest ? (
         <p className="p-6 font-mono text-red-300">Failed to load level.</p>
-      ) : playMode === "complete" ? (
-        <div className="flex h-full items-center justify-center">
-          <p className="font-display text-2xl tracking-[0.2em] text-amber-50/90">
-            {playtestFromLevelEditor ? "Playtest complete" : "Level complete"}
-          </p>
-        </div>
       ) : playMode === "scroll" && scrollBeat ? (
         <MenuBackdrop dim>
           <ScrollingText

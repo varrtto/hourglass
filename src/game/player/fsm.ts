@@ -35,7 +35,7 @@ export function createPlayer(level: Level, k: Kinematics): Player {
     y: level.spawn.y,
     vx: 0,
     vy: 0,
-    facing: 1,
+    facing: level.spawn.x >= level.width * 0.5 ? -1 : 1,
     state: "idle",
     timer: 0,
     height: k.standHeight,

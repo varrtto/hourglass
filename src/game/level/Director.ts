@@ -1,6 +1,6 @@
 import type { Level } from "../types";
-import { resolveTargetBeat } from "./manifest";
 import { CinematicRunner } from "./CinematicRunner";
+import { resolveTargetBeat } from "./manifest";
 import type {
   Beat,
   DirectorState,
@@ -23,6 +23,7 @@ export class LevelDirector {
   private loadRoom: (roomId: string) => Promise<Level>;
   private pendingSpawn: { x: number; y: number } | null = null;
   private elapsedSec = 0;
+  private runningSince: number | null = null;
   private timedOut = false;
   private lastTimeEmitSec = -1;
 
@@ -56,7 +57,34 @@ export class LevelDirector {
   private timeRemainingSec(): number | null {
     const limit = this.manifest.timeLimitSec;
     if (limit == null || limit <= 0) return null;
-    return Math.max(0, limit - this.elapsedSec);
+    return Math.max(0, limit - this.effectiveElapsed());
+  }
+
+  private effectiveElapsed(): number {
+    let elapsed = this.elapsedSec;
+    if (this.runningSince != null) {
+      elapsed += (performance.now() - this.runningSince) / 1000;
+    }
+    return elapsed;
+  }
+
+  private shouldRunTimer(): boolean {
+    if (this.timedOut) return false;
+    if (this.playMode === "complete" || this.playMode === "scroll") return false;
+    const limit = this.manifest.timeLimitSec;
+    return limit != null && limit > 0;
+  }
+
+  /** Pause/resume the wall-clock countdown to match play mode. */
+  private syncTimerClock() {
+    if (this.shouldRunTimer()) {
+      if (this.runningSince == null) this.runningSince = performance.now();
+      return;
+    }
+    if (this.runningSince != null) {
+      this.elapsedSec += (performance.now() - this.runningSince) / 1000;
+      this.runningSince = null;
+    }
   }
 
   getBeat(): Beat | null {
@@ -116,7 +144,7 @@ export class LevelDirector {
   }
 
   tick(dt: number) {
-    this.tickTime(dt);
+    this.tickTime();
     if (this.playMode !== "cinematic" || !this.cinematic) return;
     this.cinematic.tick(dt);
     this.caption = this.cinematic.caption;
@@ -127,7 +155,8 @@ export class LevelDirector {
     }
   }
 
-  tickTime(dt: number) {
+  tickTime() {
+    this.syncTimerClock();
     if (
       this.timedOut ||
       this.playMode === "complete" ||
@@ -138,16 +167,13 @@ export class LevelDirector {
     const limit = this.manifest.timeLimitSec;
     if (limit == null || limit <= 0) return;
 
-    const prevRemaining = limit - this.elapsedSec;
-    this.elapsedSec += dt;
-    const remaining = limit - this.elapsedSec;
-
-    if (prevRemaining > 0 && remaining <= 0) {
+    const remaining = limit - this.effectiveElapsed();
+    if (remaining <= 0) {
       void this.handleTimeout();
       return;
     }
 
-    const displaySec = Math.ceil(Math.max(0, remaining));
+    const displaySec = Math.ceil(remaining);
     if (displaySec !== this.lastTimeEmitSec) {
       this.lastTimeEmitSec = displaySec;
       this.emit();
@@ -216,6 +242,7 @@ export class LevelDirector {
         break;
       }
     }
+    this.syncTimerClock();
     this.emit();
   }
 
