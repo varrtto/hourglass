@@ -1,43 +1,43 @@
 #!/usr/bin/env python3
-"""Generate pixel-art tileset for Orpheus' Descent."""
+"""Generate pixel-art tileset for Orpheus' Descent - proper stone blocks edition."""
 
 from PIL import Image, ImageDraw
 import os
+import random
 
-# Underworld stone/brick palette (from menu-bg.png aesthetic)
+# Underworld palette matching menu-bg.png (warm dark stone)
 COLORS = {
-    # Stone colors
-    'stone_dark': (45, 35, 30),      # Dark stone
-    'stone_mid': (75, 60, 50),       # Mid stone
-    'stone_light': (95, 80, 65),     # Light stone highlight
-    'stone_deep': (30, 25, 20),      # Deep shadow
+    # Stone base colors - warm browns from the menu
+    'stone_base': (58, 42, 34),          # Primary stone color
+    'stone_dark': (45, 32, 26),          # Shadow areas
+    'stone_darker': (35, 25, 20),        # Deep shadows
+    'stone_light': (75, 58, 46),         # Highlight
+    'stone_lighter': (90, 72, 58),       # Bright highlight
+    'stone_warm': (68, 50, 40),          # Warm mid-tone
     
-    # Mortar/cracks
-    'mortar': (25, 20, 15),          # Dark mortar between bricks
-    'crack': (35, 28, 22),           # Cracks in stone
+    # Mortar and cracks
+    'mortar': (28, 20, 16),              # Dark mortar between stones
+    'mortar_light': (38, 28, 22),        # Lighter mortar edge
+    'crack_dark': (20, 14, 11),          # Deep crack
+    'crack_mid': (32, 24, 19),           # Crack highlight
     
-    # Gold/brass for ledges
-    'gold_dark': (140, 100, 45),     # Dark gold
-    'gold_mid': (200, 160, 80),      # Mid gold
-    'gold_light': (230, 200, 120),   # Light gold highlight
+    # Brass/gold for ledges - matching menu's golden elements
+    'brass_dark': (107, 83, 52),         # Dark brass
+    'brass_mid': (180, 147, 94),         # Mid brass
+    'brass_light': (212, 180, 131),      # Bright brass
+    'brass_bright': (232, 197, 71),      # Highlight (from palette)
+    'brass_shadow': (80, 60, 35),        # Deep shadow
     
-    # Red/blood for spikes
-    'spike_dark': (90, 20, 25),      # Dark red
-    'spike_mid': (140, 30, 40),      # Mid red
-    'spike_light': (180, 50, 60),    # Light red highlight
-    'spike_tip': (200, 80, 90),      # Spike tip
-    
-    # Background
-    'bg': (14, 10, 8),               # Dark background
+    # Iron for spikes - dark metal
+    'iron_dark': (45, 40, 38),           # Base iron
+    'iron_mid': (65, 58, 54),            # Mid iron
+    'iron_light': (85, 78, 72),          # Highlight
+    'iron_rust': (90, 50, 40),           # Rust tint
+    'iron_shadow': (30, 26, 24),         # Deep shadow
 }
 
 def create_tileset():
-    """Create the complete tileset image."""
-    # Tileset layout: 16x16 tiles
-    # Row 0: Solid block variations (fill, top, bottom, left, right, corners)
-    # Row 1: Ledge variations
-    # Row 2: Spike variations
-    
+    """Create the complete tileset image with proper stone blocks."""
     tile_size = 16
     tiles_wide = 16
     tiles_high = 8
@@ -46,312 +46,252 @@ def create_tileset():
     img_height = tiles_high * tile_size
     
     img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
     
-    # Helper function to set pixel
     def set_pixel(img, x, y, color):
+        """Set a single pixel with bounds checking."""
         if 0 <= x < img.width and 0 <= y < img.height:
             img.putpixel((x, y), color if len(color) == 4 else (*color, 255))
     
-    # Helper to draw a tile at position
-    def tile_xy(tx, ty):
-        return tx * tile_size, ty * tile_size
+    def fill_rect(img, x, y, w, h, color):
+        """Fill a rectangle with a color."""
+        for py in range(y, y + h):
+            for px in range(x, x + w):
+                set_pixel(img, px, py, color)
+    
+    def draw_stone_block(img, ox, oy, has_top=False, has_bottom=False, 
+                         has_left=False, has_right=False):
+        """Draw a 16x16 stone block with proper texture."""
+        # Base fill with slight variation
+        for y in range(16):
+            for x in range(16):
+                # Create stone texture with subtle variation
+                noise = ((x * 7 + y * 13) % 11) - 5
+                if (x + y) % 8 == 0:
+                    base = COLORS['stone_warm']
+                elif (x * 3 + y * 5) % 13 == 0:
+                    base = COLORS['stone_dark']
+                else:
+                    base = COLORS['stone_base']
+                
+                # Apply slight noise
+                r = max(0, min(255, base[0] + noise))
+                g = max(0, min(255, base[1] + noise))
+                b = max(0, min(255, base[2] + noise))
+                set_pixel(img, ox + x, oy + y, (r, g, b))
+        
+        # Add stone grain/cracks
+        for y in range(2, 14):
+            if y % 5 == 2:
+                for x in range(2, 14):
+                    if (x + y) % 3 == 0:
+                        set_pixel(img, ox + x, oy + y, COLORS['crack_mid'])
+        
+        # Mortar lines between blocks (when not an edge)
+        if not has_top:
+            # Top edge highlight
+            for x in range(16):
+                set_pixel(img, ox + x, oy, COLORS['stone_lighter'])
+                set_pixel(img, ox + x, oy + 1, COLORS['stone_light'])
+        
+        if not has_bottom:
+            # Bottom mortar/shadow
+            for x in range(16):
+                set_pixel(img, ox + x, oy + 15, COLORS['mortar'])
+                set_pixel(img, ox + x, oy + 14, COLORS['stone_dark'])
+        
+        if not has_left:
+            # Left edge highlight
+            for y in range(16):
+                set_pixel(img, ox, oy + y, COLORS['stone_light'])
+                set_pixel(img, ox + 1, oy + y, COLORS['stone_light'])
+        
+        if not has_right:
+            # Right edge shadow
+            for y in range(16):
+                set_pixel(img, ox + 15, oy + y, COLORS['stone_darker'])
+                set_pixel(img, ox + 14, oy + y, COLORS['stone_dark'])
+        
+        # Corner details
+        if not has_top and not has_left:
+            # Top-left corner - extra highlight
+            set_pixel(img, ox, oy, COLORS['stone_lighter'])
+            set_pixel(img, ox + 1, oy, COLORS['stone_lighter'])
+            set_pixel(img, ox, oy + 1, COLORS['stone_lighter'])
+        
+        if not has_top and not has_right:
+            # Top-right corner
+            set_pixel(img, ox + 15, oy, COLORS['stone_light'])
+            set_pixel(img, ox + 14, oy, COLORS['stone_light'])
+        
+        if not has_bottom and not has_left:
+            # Bottom-left corner
+            set_pixel(img, ox, oy + 15, COLORS['mortar'])
+            set_pixel(img, ox + 1, oy + 15, COLORS['mortar'])
+        
+        if not has_bottom and not has_right:
+            # Bottom-right corner - deepest shadow
+            set_pixel(img, ox + 15, oy + 15, COLORS['crack_dark'])
+            set_pixel(img, ox + 14, oy + 15, COLORS['mortar'])
+            set_pixel(img, ox + 15, oy + 14, COLORS['mortar'])
+    
+    def draw_brass_ledge(img, ox, oy, has_left_cap=False, has_right_cap=False):
+        """Draw a carved brass ledge."""
+        # Brass sill with architectural profile
+        base_y = 7
+        
+        # Main brass bar
+        for y in range(base_y - 2, base_y + 3):
+            for x in range(16):
+                if y == base_y - 2:
+                    set_pixel(img, ox + x, oy + y, COLORS['brass_shadow'])
+                elif y == base_y - 1:
+                    set_pixel(img, ox + x, oy + y, COLORS['brass_light'])
+                elif y == base_y:
+                    set_pixel(img, ox + x, oy + y, COLORS['brass_bright'])
+                elif y == base_y + 1:
+                    set_pixel(img, ox + x, oy + y, COLORS['brass_mid'])
+                else:
+                    set_pixel(img, ox + x, oy + y, COLORS['brass_dark'])
+        
+        # Add decorative details
+        if has_left_cap:
+            # Left bracket
+            for y in range(base_y - 3, base_y + 4):
+                for x in range(0, 3):
+                    if y < base_y:
+                        set_pixel(img, ox + x, oy + y, COLORS['brass_mid'])
+                    else:
+                        set_pixel(img, ox + x, oy + y, COLORS['brass_dark'])
+            # Highlight
+            set_pixel(img, ox + 1, oy + base_y - 2, COLORS['brass_bright'])
+        
+        if has_right_cap:
+            # Right bracket
+            for y in range(base_y - 3, base_y + 4):
+                for x in range(13, 16):
+                    if y < base_y:
+                        set_pixel(img, ox + x, oy + y, COLORS['brass_mid'])
+                    else:
+                        set_pixel(img, ox + x, oy + y, COLORS['brass_dark'])
+            # Shadow
+            set_pixel(img, ox + 14, oy + base_y + 2, COLORS['brass_shadow'])
+    
+    def draw_iron_spike(img, ox, oy, variant=0):
+        """Draw an iron spike."""
+        base_y = 14
+        
+        # Base plate
+        for y in range(base_y, 16):
+            for x in range(2, 14):
+                if y == base_y:
+                    set_pixel(img, ox + x, oy + y, COLORS['iron_mid'])
+                else:
+                    set_pixel(img, ox + x, oy + y, COLORS['iron_dark'])
+        
+        if variant == 0:
+            # Single tall spike
+            spike_points = [
+                (8, 3), (7, 5), (8, 5), (9, 5),
+                (6, 7), (7, 7), (8, 7), (9, 7), (10, 7),
+                (5, 9), (6, 9), (7, 9), (8, 9), (9, 9), (10, 9), (11, 9),
+                (4, 11), (5, 11), (6, 11), (7, 11), (8, 11), (9, 11), (10, 11), (11, 11), (12, 11),
+            ]
+            for x, y in spike_points:
+                if y < 8:
+                    set_pixel(img, ox + x, oy + y, COLORS['iron_light'])
+                elif y < 10:
+                    if x < 8:
+                        set_pixel(img, ox + x, oy + y, COLORS['iron_mid'])
+                    else:
+                        set_pixel(img, ox + x, oy + y, COLORS['iron_dark'])
+                else:
+                    set_pixel(img, ox + x, oy + y, COLORS['iron_dark'])
+            # Tip highlight
+            set_pixel(img, ox + 8, oy + 3, COLORS['iron_light'])
+            # Rust stain
+            set_pixel(img, ox + 6, oy + 12, COLORS['iron_rust'])
+            set_pixel(img, ox + 10, oy + 12, COLORS['iron_rust'])
+        
+        elif variant == 1:
+            # Double spike
+            for spike_x in [5, 11]:
+                spike_points = [
+                    (spike_x, 5), (spike_x - 1, 7), (spike_x, 7), (spike_x + 1, 7),
+                    (spike_x - 2, 9), (spike_x - 1, 9), (spike_x, 9), (spike_x + 1, 9), (spike_x + 2, 9),
+                    (spike_x - 2, 11), (spike_x - 1, 11), (spike_x, 11), (spike_x + 1, 11), (spike_x + 2, 11),
+                ]
+                for x, y in spike_points:
+                    if 0 <= x < 16:
+                        if y < 9:
+                            set_pixel(img, ox + x, oy + y, COLORS['iron_mid'])
+                        else:
+                            set_pixel(img, ox + x, oy + y, COLORS['iron_dark'])
+                set_pixel(img, ox + spike_x, oy + 5, COLORS['iron_light'])
+        
+        else:
+            # Triple short spikes
+            for spike_x in [4, 8, 12]:
+                for y_off in range(6, 13):
+                    width = max(0, 3 - (y_off - 6) // 2)
+                    for x_off in range(-width, width + 1):
+                        x = spike_x + x_off
+                        if 0 <= x < 16:
+                            if y_off < 8:
+                                set_pixel(img, ox + x, oy + y_off, COLORS['iron_light'])
+                            else:
+                                set_pixel(img, ox + x, oy + y_off, COLORS['iron_dark'])
     
     # === SOLID BLOCK TILES ===
+    # Row 0: Different neighbor configurations
     
-    # Tile 0,0: Solid fill (interior block)
-    tx, ty = 0, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            # Add some texture variation
-            if (x + y) % 7 == 0:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-            elif (x * 3 + y * 2) % 11 == 0:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            else:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    # Tile 0,0: Fill tile (surrounded by other blocks)
+    draw_stone_block(img, 0, 0, has_top=True, has_bottom=True, has_left=True, has_right=True)
     
-    # Tile 1,0: Block with top edge
-    tx, ty = 1, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if y == 0:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            elif y == 1:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            elif y == 2:
-                if x % 3 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['crack'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    # Tile 1,0: Top edge exposed
+    draw_stone_block(img, 16, 0, has_top=False, has_bottom=True, has_left=True, has_right=True)
     
-    # Tile 2,0: Block with bottom edge
-    tx, ty = 2, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if y >= tile_size - 2:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_dark'])
-            elif y == tile_size - 3:
-                set_pixel(img, ox + x, oy + y, COLORS['mortar'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    # Tile 2,0: Bottom edge exposed
+    draw_stone_block(img, 32, 0, has_top=True, has_bottom=False, has_left=True, has_right=True)
     
-    # Tile 3,0: Block with left edge
-    tx, ty = 3, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if x == 0:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_dark'])
-            elif x == 1:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    # Tile 3,0: Left edge exposed
+    draw_stone_block(img, 48, 0, has_top=True, has_bottom=True, has_left=False, has_right=True)
     
-    # Tile 4,0: Block with right edge
-    tx, ty = 4, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if x == tile_size - 1:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-            elif x == tile_size - 2:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_dark'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    # Tile 4,0: Right edge exposed
+    draw_stone_block(img, 64, 0, has_top=True, has_bottom=True, has_left=True, has_right=False)
     
     # Tile 5,0: Top-left corner
-    tx, ty = 5, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if y <= 1:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            elif x <= 1:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    draw_stone_block(img, 80, 0, has_top=False, has_bottom=True, has_left=False, has_right=True)
     
     # Tile 6,0: Top-right corner
-    tx, ty = 6, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if y <= 1:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            elif x >= tile_size - 2:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_dark'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    draw_stone_block(img, 96, 0, has_top=False, has_bottom=True, has_left=True, has_right=False)
     
     # Tile 7,0: Bottom-left corner
-    tx, ty = 7, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if y >= tile_size - 2:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_dark'])
-            elif x <= 1:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    draw_stone_block(img, 112, 0, has_top=True, has_bottom=False, has_left=False, has_right=True)
     
     # Tile 8,0: Bottom-right corner
-    tx, ty = 8, 0
-    ox, oy = tile_xy(tx, ty)
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if y >= tile_size - 2:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_dark'])
-            elif x >= tile_size - 2:
-                set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-            else:
-                if (x + y) % 7 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_deep'])
-                elif (x * 3 + y * 2) % 11 == 0:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_light'])
-                else:
-                    set_pixel(img, ox + x, oy + y, COLORS['stone_mid'])
+    draw_stone_block(img, 128, 0, has_top=True, has_bottom=False, has_left=True, has_right=False)
     
     # === LEDGE TILES (Row 1) ===
     
-    # Tile 0,1: Basic ledge
-    tx, ty = 0, 1
-    ox, oy = tile_xy(tx, ty)
-    ledge_y = tile_size // 2
-    for x in range(tile_size):
-        # Gold bar
-        set_pixel(img, ox + x, oy + ledge_y - 2, COLORS['gold_dark'])
-        set_pixel(img, ox + x, oy + ledge_y - 1, COLORS['gold_light'])
-        set_pixel(img, ox + x, oy + ledge_y, COLORS['gold_mid'])
-        set_pixel(img, ox + x, oy + ledge_y + 1, COLORS['gold_dark'])
+    # Tile 0,1: Basic ledge (middle)
+    draw_brass_ledge(img, 0, 16, has_left_cap=False, has_right_cap=False)
     
-    # Tile 1,1: Ledge with left cap
-    tx, ty = 1, 1
-    ox, oy = tile_xy(tx, ty)
-    for x in range(tile_size):
-        y_offset = ledge_y
-        if x <= 2:
-            # Bracket on left
-            set_pixel(img, ox + x, oy + y_offset - 3, COLORS['gold_dark'])
-            set_pixel(img, ox + x, oy + y_offset - 2, COLORS['gold_mid'])
-            set_pixel(img, ox + x, oy + y_offset - 1, COLORS['gold_light'])
-            set_pixel(img, ox + x, oy + y_offset, COLORS['gold_mid'])
-            set_pixel(img, ox + x, oy + y_offset + 1, COLORS['gold_dark'])
-            set_pixel(img, ox + x, oy + y_offset + 2, COLORS['gold_dark'])
-        else:
-            set_pixel(img, ox + x, oy + y_offset - 2, COLORS['gold_dark'])
-            set_pixel(img, ox + x, oy + y_offset - 1, COLORS['gold_light'])
-            set_pixel(img, ox + x, oy + y_offset, COLORS['gold_mid'])
-            set_pixel(img, ox + x, oy + y_offset + 1, COLORS['gold_dark'])
+    # Tile 1,1: Ledge with left end cap
+    draw_brass_ledge(img, 16, 16, has_left_cap=True, has_right_cap=False)
     
-    # Tile 2,1: Ledge with right cap
-    tx, ty = 2, 1
-    ox, oy = tile_xy(tx, ty)
-    for x in range(tile_size):
-        y_offset = ledge_y
-        if x >= tile_size - 3:
-            # Bracket on right
-            set_pixel(img, ox + x, oy + y_offset - 3, COLORS['gold_dark'])
-            set_pixel(img, ox + x, oy + y_offset - 2, COLORS['gold_mid'])
-            set_pixel(img, ox + x, oy + y_offset - 1, COLORS['gold_light'])
-            set_pixel(img, ox + x, oy + y_offset, COLORS['gold_mid'])
-            set_pixel(img, ox + x, oy + y_offset + 1, COLORS['gold_dark'])
-            set_pixel(img, ox + x, oy + y_offset + 2, COLORS['gold_dark'])
-        else:
-            set_pixel(img, ox + x, oy + y_offset - 2, COLORS['gold_dark'])
-            set_pixel(img, ox + x, oy + y_offset - 1, COLORS['gold_light'])
-            set_pixel(img, ox + x, oy + y_offset, COLORS['gold_mid'])
-            set_pixel(img, ox + x, oy + y_offset + 1, COLORS['gold_dark'])
+    # Tile 2,1: Ledge with right end cap
+    draw_brass_ledge(img, 32, 16, has_left_cap=False, has_right_cap=True)
     
     # === SPIKE TILES (Row 2) ===
     
-    # Tile 0,2: Basic spike
-    tx, ty = 0, 2
-    ox, oy = tile_xy(tx, ty)
-    spike_base_y = tile_size - 2
-    spike_tip_y = 4
-    for y in range(tile_size):
-        for x in range(tile_size):
-            # Triangle spike in center
-            if y >= spike_base_y:
-                # Base
-                if 2 <= x <= 13:
-                    set_pixel(img, ox + x, oy + y, COLORS['spike_dark'])
-            else:
-                # Check if in triangle
-                center_x = tile_size / 2
-                dist_from_center = abs(x - center_x)
-                max_dist_at_y = (spike_base_y - y) * 0.5
-                if dist_from_center <= max_dist_at_y:
-                    if y <= spike_tip_y + 1:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_tip'])
-                    elif y <= spike_tip_y + 4:
-                        if x < center_x:
-                            set_pixel(img, ox + x, oy + y, COLORS['spike_light'])
-                        else:
-                            set_pixel(img, ox + x, oy + y, COLORS['spike_mid'])
-                    else:
-                        if x < center_x:
-                            set_pixel(img, ox + x, oy + y, COLORS['spike_mid'])
-                        else:
-                            set_pixel(img, ox + x, oy + y, COLORS['spike_dark'])
+    # Tile 0,2: Single tall spike
+    draw_iron_spike(img, 0, 32, variant=0)
     
-    # Tile 1,2: Double spike
-    tx, ty = 1, 2
-    ox, oy = tile_xy(tx, ty)
-    spike_base_y = tile_size - 2
-    for y in range(tile_size):
-        for x in range(tile_size):
-            # Two smaller spikes
-            if y >= spike_base_y:
-                if 1 <= x <= 14:
-                    set_pixel(img, ox + x, oy + y, COLORS['spike_dark'])
-            else:
-                # Left spike
-                center_x1 = 5
-                dist1 = abs(x - center_x1)
-                max_dist_at_y = (spike_base_y - y) * 0.35
-                if dist1 <= max_dist_at_y:
-                    if y <= 6:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_tip'])
-                    elif x < center_x1:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_light'])
-                    else:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_dark'])
-                
-                # Right spike
-                center_x2 = 11
-                dist2 = abs(x - center_x2)
-                if dist2 <= max_dist_at_y:
-                    if y <= 6:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_tip'])
-                    elif x < center_x2:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_light'])
-                    else:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_dark'])
+    # Tile 1,2: Double spikes
+    draw_iron_spike(img, 16, 32, variant=1)
     
-    # Tile 2,2: Short spike variation
-    tx, ty = 2, 2
-    ox, oy = tile_xy(tx, ty)
-    spike_base_y = tile_size - 2
-    spike_tip_y = 8
-    for y in range(tile_size):
-        for x in range(tile_size):
-            if y >= spike_base_y:
-                if 3 <= x <= 12:
-                    set_pixel(img, ox + x, oy + y, COLORS['spike_dark'])
-            else:
-                center_x = tile_size / 2
-                dist_from_center = abs(x - center_x)
-                max_dist_at_y = (spike_base_y - y) * 0.4
-                if dist_from_center <= max_dist_at_y:
-                    if y <= spike_tip_y:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_tip'])
-                    elif x < center_x:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_light'])
-                    else:
-                        set_pixel(img, ox + x, oy + y, COLORS['spike_mid'])
+    # Tile 2,2: Triple short spikes
+    draw_iron_spike(img, 32, 32, variant=2)
     
     return img
 

@@ -160,62 +160,158 @@ export function worldToScreen(
 
 export function drawBackdrop(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
   const pal = paletteFor(level);
-  
-  // Sky gradient
-  const skyGradient = ctx.createLinearGradient(0, 0, 0, cam.screenH);
-  skyGradient.addColorStop(0, pal.sky);
-  skyGradient.addColorStop(1, pal.room);
-  ctx.fillStyle = skyGradient;
-  ctx.fillRect(0, 0, cam.screenW, cam.screenH);
-
   const origin = worldToScreen(cam, 0, level.height);
   const w = level.width * cam.ppt;
   const h = level.height * cam.ppt;
+  
+  // Deep atmospheric gradient sky
+  const skyGradient = ctx.createRadialGradient(
+    cam.screenW / 2, cam.screenH * 0.3, 0,
+    cam.screenW / 2, cam.screenH * 0.3, cam.screenH * 0.8
+  );
+  skyGradient.addColorStop(0, pal.inner);
+  skyGradient.addColorStop(0.5, pal.room);
+  skyGradient.addColorStop(1, pal.sky);
+  ctx.fillStyle = skyGradient;
+  ctx.fillRect(0, 0, cam.screenW, cam.screenH);
 
-  // Main room boundary with depth
-  ctx.fillStyle = pal.room;
+  // Far background architectural elements - distant arches/structures
+  ctx.save();
+  ctx.globalAlpha = 0.15;
+  const numArches = Math.ceil(level.width / 12);
+  for (let i = 0; i < numArches; i++) {
+    const archX = origin.x + (i * 12 + 6) * cam.ppt;
+    const archY = origin.y + level.height * 0.3 * cam.ppt;
+    const archW = 4 * cam.ppt;
+    const archH = 6 * cam.ppt;
+    
+    // Distant arch silhouette
+    ctx.fillStyle = pal.stoneDark;
+    ctx.fillRect(archX - archW * 0.1, archY, archW * 0.2, archH);
+    ctx.fillRect(archX + archW * 0.9, archY, archW * 0.2, archH);
+    
+    // Arch curve (simplified)
+    ctx.beginPath();
+    ctx.arc(archX + archW / 2, archY + archH * 0.7, archW * 0.45, Math.PI, 0, true);
+    ctx.fillStyle = pal.void;
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Middle depth - stone wall texture
+  const wallGradient = ctx.createLinearGradient(
+    origin.x, origin.y,
+    origin.x, origin.y + h
+  );
+  wallGradient.addColorStop(0, pal.room);
+  wallGradient.addColorStop(0.3, pal.inner);
+  wallGradient.addColorStop(1, pal.room);
+  ctx.fillStyle = wallGradient;
   ctx.fillRect(origin.x - 4 * cam.ppt, origin.y - 4 * cam.ppt, w + 8 * cam.ppt, h + 8 * cam.ppt);
   
-  // Inner shadow layer
-  ctx.fillStyle = pal.inner;
-  ctx.fillRect(
-    origin.x + level.width * 0.1 * cam.ppt,
-    origin.y + level.height * 0.15 * cam.ppt,
-    level.width * 0.8 * cam.ppt,
-    level.height * 0.5 * cam.ppt,
-  );
+  // Stone block pattern in background
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  const blockSize = cam.ppt * 2;
+  for (let y = -2; y < level.height / 2; y++) {
+    for (let x = -2; x < level.width / 2; x++) {
+      const bx = origin.x + x * blockSize * 2;
+      const by = origin.y + y * blockSize * 2;
+      ctx.strokeStyle = pal.stoneDark;
+      ctx.lineWidth = Math.max(1, cam.ppt * 0.03);
+      ctx.strokeRect(bx, by, blockSize * 2, blockSize);
+    }
+  }
+  ctx.restore();
 
-  // Decorative pillars/columns with capitals
-  ctx.fillStyle = pal.columns;
+  // Foreground architectural columns with detail
   const numColumns = Math.ceil(level.width / 8);
   for (let i = 0; i < numColumns; i++) {
     const colX = origin.x + (4 + i * 8) * cam.ppt;
-    const colW = 0.55 * cam.ppt;
+    const colW = cam.ppt * 0.8;
     const colH = h + 2 * cam.ppt;
+    const capH = cam.ppt * 1.2;
+    const baseH = cam.ppt * 0.8;
     
-    // Column shaft
+    // Column shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+    ctx.fillRect(colX - colW / 2 + cam.ppt * 0.1, origin.y - cam.ppt + cam.ppt * 0.1, colW, colH);
+    
+    // Column shaft with fluting suggestion
+    const shaftGradient = ctx.createLinearGradient(
+      colX - colW / 2, origin.y,
+      colX + colW / 2, origin.y
+    );
+    shaftGradient.addColorStop(0, pal.stoneDark);
+    shaftGradient.addColorStop(0.3, pal.columns);
+    shaftGradient.addColorStop(0.7, pal.columns);
+    shaftGradient.addColorStop(1, pal.stone);
+    ctx.fillStyle = shaftGradient;
     ctx.fillRect(colX - colW / 2, origin.y - cam.ppt, colW, colH);
     
-    // Capital (top)
-    ctx.fillStyle = pal.stoneDark;
-    ctx.fillRect(colX - colW * 1.2, origin.y - cam.ppt - colW * 0.8, colW * 2.4, colW * 0.8);
-    ctx.fillStyle = pal.columns;
+    // Capital (top) - multi-layered
+    const capX = colX - colW * 1.5;
+    const capY = origin.y - cam.ppt - capH;
+    const capW = colW * 3;
     
-    // Base (bottom) - subtle
+    // Capital base
+    ctx.fillStyle = pal.stone;
+    ctx.fillRect(capX, capY + capH * 0.5, capW, capH * 0.5);
+    
+    // Capital crown
     ctx.fillStyle = pal.stoneDark;
-    ctx.fillRect(colX - colW * 1.1, origin.y + colH - cam.ppt - colW * 0.5, colW * 2.2, colW * 0.5);
-    ctx.fillStyle = pal.columns;
+    ctx.fillRect(capX + capW * 0.1, capY + capH * 0.2, capW * 0.8, capH * 0.3);
+    
+    // Capital highlight
+    ctx.fillStyle = pal.lintelHi;
+    ctx.fillRect(capX + capW * 0.15, capY + capH * 0.25, capW * 0.7, capH * 0.1);
+    
+    // Base (bottom) plinth
+    const baseY = origin.y + colH - cam.ppt - baseH;
+    ctx.fillStyle = pal.stone;
+    ctx.fillRect(colX - colW * 1.3, baseY, colW * 2.6, baseH);
+    ctx.fillStyle = pal.stoneDark;
+    ctx.fillRect(colX - colW * 1.3, baseY + baseH * 0.7, colW * 2.6, baseH * 0.3);
   }
   
-  // Atmospheric particles/dust motes
+  // Atmospheric embers/dust with depth
   ctx.save();
   const time = Date.now() * 0.0001;
-  for (let i = 0; i < 15; i++) {
-    const px = origin.x + ((i * 73 + time * 20 + i * i) % level.width) * cam.ppt;
-    const py = origin.y + ((i * 47 + time * 10) % level.height) * cam.ppt;
-    const alpha = (Math.sin(time * 2 + i) + 1) * 0.15;
-    ctx.fillStyle = `rgba(180, 160, 120, ${alpha})`;
-    ctx.fillRect(px, py, cam.ppt * 0.15, cam.ppt * 0.15);
+  
+  // Far particles (small, dim)
+  for (let i = 0; i < 25; i++) {
+    const seed = i * 17;
+    const px = origin.x + ((seed * 73 + time * 15) % (level.width * cam.ppt));
+    const py = origin.y + ((seed * 47 + time * 8) % (level.height * cam.ppt));
+    const phase = (time * 3 + seed) % (Math.PI * 2);
+    const alpha = (Math.sin(phase) * 0.5 + 0.5) * 0.08;
+    
+    ctx.fillStyle = `rgba(180, 140, 100, ${alpha})`;
+    ctx.fillRect(px, py, Math.max(1, cam.ppt * 0.08), Math.max(1, cam.ppt * 0.08));
+  }
+  
+  // Near particles (larger, brighter) - only some are embers
+  for (let i = 0; i < 12; i++) {
+    const seed = i * 23;
+    const px = origin.x + ((seed * 97 + time * 25 + seed * seed) % (level.width * cam.ppt));
+    const py = origin.y + ((seed * 61 - time * 12) % (level.height * cam.ppt));
+    const phase = (time * 2 + seed) % (Math.PI * 2);
+    const alpha = (Math.sin(phase) * 0.5 + 0.5) * 0.25;
+    
+    // Some particles are warm embers
+    if (i % 3 === 0) {
+      ctx.fillStyle = `rgba(220, 120, 60, ${alpha})`;
+    } else {
+      ctx.fillStyle = `rgba(200, 180, 140, ${alpha})`;
+    }
+    const size = Math.max(1, cam.ppt * 0.15);
+    ctx.fillRect(px, py, size, size);
+    
+    // Glow for embers
+    if (i % 3 === 0 && alpha > 0.15) {
+      ctx.fillStyle = `rgba(255, 160, 80, ${alpha * 0.3})`;
+      ctx.fillRect(px - size, py - size, size * 3, size * 3);
+    }
   }
   ctx.restore();
 }
