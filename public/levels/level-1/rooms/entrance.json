@@ -1223,7 +1223,7 @@
           "name": "spawn",
           "type": "spawn",
           "x": 64,
-          "y": 80,
+          "y": 288,
           "width": 16,
           "height": 16
         },

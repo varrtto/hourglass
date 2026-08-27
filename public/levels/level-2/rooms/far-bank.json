@@ -1319,7 +1319,7 @@
           "name": "spawn",
           "type": "spawn",
           "x": 64,
-          "y": 400,
+          "y": 384,
           "width": 16,
           "height": 16
         },
