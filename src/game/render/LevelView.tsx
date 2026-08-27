@@ -1,5 +1,6 @@
 import type { AtmosphereId, Level, TileId } from "../types";
 import { TILE_LEDGE, TILE_SOLID, TILE_SPIKE } from "../types";
+import { useEffect, useState } from "react";
 
 type AtmospherePalette = {
   sky: string;
@@ -159,33 +160,228 @@ export function worldToScreen(
 
 export function drawBackdrop(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
   const pal = paletteFor(level);
-  ctx.fillStyle = pal.sky;
+  
+  // Sky gradient
+  const skyGradient = ctx.createLinearGradient(0, 0, 0, cam.screenH);
+  skyGradient.addColorStop(0, pal.sky);
+  skyGradient.addColorStop(1, pal.room);
+  ctx.fillStyle = skyGradient;
   ctx.fillRect(0, 0, cam.screenW, cam.screenH);
 
   const origin = worldToScreen(cam, 0, level.height);
   const w = level.width * cam.ppt;
   const h = level.height * cam.ppt;
 
+  // Main room boundary with depth
   ctx.fillStyle = pal.room;
   ctx.fillRect(origin.x - 4 * cam.ppt, origin.y - 4 * cam.ppt, w + 8 * cam.ppt, h + 8 * cam.ppt);
-
+  
+  // Inner shadow layer
   ctx.fillStyle = pal.inner;
   ctx.fillRect(
-    origin.x + level.width * 0.15 * cam.ppt,
-    origin.y + level.height * 0.2 * cam.ppt,
-    level.width * 0.7 * cam.ppt,
-    level.height * 0.45 * cam.ppt,
+    origin.x + level.width * 0.1 * cam.ppt,
+    origin.y + level.height * 0.15 * cam.ppt,
+    level.width * 0.8 * cam.ppt,
+    level.height * 0.5 * cam.ppt,
   );
 
+  // Decorative pillars/columns with capitals
   ctx.fillStyle = pal.columns;
-  for (let i = 0; i < Math.ceil(level.width / 8); i++) {
-    const x = origin.x + (4 + i * 8) * cam.ppt - 0.275 * cam.ppt;
-    ctx.fillRect(x, origin.y - cam.ppt, 0.55 * cam.ppt, h + 2 * cam.ppt);
+  const numColumns = Math.ceil(level.width / 8);
+  for (let i = 0; i < numColumns; i++) {
+    const colX = origin.x + (4 + i * 8) * cam.ppt;
+    const colW = 0.55 * cam.ppt;
+    const colH = h + 2 * cam.ppt;
+    
+    // Column shaft
+    ctx.fillRect(colX - colW / 2, origin.y - cam.ppt, colW, colH);
+    
+    // Capital (top)
+    ctx.fillStyle = pal.stoneDark;
+    ctx.fillRect(colX - colW * 1.2, origin.y - cam.ppt - colW * 0.8, colW * 2.4, colW * 0.8);
+    ctx.fillStyle = pal.columns;
+    
+    // Base (bottom) - subtle
+    ctx.fillStyle = pal.stoneDark;
+    ctx.fillRect(colX - colW * 1.1, origin.y + colH - cam.ppt - colW * 0.5, colW * 2.2, colW * 0.5);
+    ctx.fillStyle = pal.columns;
   }
+  
+  // Atmospheric particles/dust motes
+  ctx.save();
+  const time = Date.now() * 0.0001;
+  for (let i = 0; i < 15; i++) {
+    const px = origin.x + ((i * 73 + time * 20 + i * i) % level.width) * cam.ppt;
+    const py = origin.y + ((i * 47 + time * 10) % level.height) * cam.ppt;
+    const alpha = (Math.sin(time * 2 + i) + 1) * 0.15;
+    ctx.fillStyle = `rgba(180, 160, 120, ${alpha})`;
+    ctx.fillRect(px, py, cam.ppt * 0.15, cam.ppt * 0.15);
+  }
+  ctx.restore();
+}
+
+// Tileset configuration
+const TILE_SIZE = 16;
+const TILESET_COLS = 16;
+
+// Tile indices in tileset
+const TILES = {
+  SOLID_FILL: { tx: 0, ty: 0 },
+  SOLID_TOP: { tx: 1, ty: 0 },
+  SOLID_BOTTOM: { tx: 2, ty: 0 },
+  SOLID_LEFT: { tx: 3, ty: 0 },
+  SOLID_RIGHT: { tx: 4, ty: 0 },
+  SOLID_TL: { tx: 5, ty: 0 },
+  SOLID_TR: { tx: 6, ty: 0 },
+  SOLID_BL: { tx: 7, ty: 0 },
+  SOLID_BR: { tx: 8, ty: 0 },
+  LEDGE: { tx: 0, ty: 1 },
+  LEDGE_LEFT: { tx: 1, ty: 1 },
+  LEDGE_RIGHT: { tx: 2, ty: 1 },
+  SPIKE: { tx: 0, ty: 2 },
+  SPIKE_DOUBLE: { tx: 1, ty: 2 },
+  SPIKE_SHORT: { tx: 2, ty: 2 },
+};
+
+let tilesetImage: HTMLImageElement | null = null;
+let tilesetLoading = false;
+
+/** Load the tileset image if not already loaded. */
+export function ensureTileset(): Promise<HTMLImageElement> {
+  if (tilesetImage && tilesetImage.complete) {
+    return Promise.resolve(tilesetImage);
+  }
+  if (tilesetLoading) {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (tilesetImage?.complete) {
+          resolve(tilesetImage);
+        } else {
+          setTimeout(check, 50);
+        }
+      };
+      check();
+    });
+  }
+  
+  tilesetLoading = true;
+  tilesetImage = new Image();
+  tilesetImage.src = "/art/tileset.png";
+  
+  return new Promise((resolve, reject) => {
+    if (tilesetImage) {
+      tilesetImage.onload = () => {
+        tilesetLoading = false;
+        resolve(tilesetImage!);
+      };
+      tilesetImage.onerror = () => {
+        tilesetLoading = false;
+        reject(new Error("Failed to load tileset"));
+      };
+    }
+  });
+}
+
+/** Check if a tile at position is solid. */
+function isSolid(level: Level, tx: number, ty: number): boolean {
+  if (tx < 0 || tx >= level.width || ty < 0 || ty >= level.height) {
+    return false;
+  }
+  const id = level.tiles[ty * level.width + tx];
+  return id === TILE_SOLID;
+}
+
+/** Determine which solid tile variant to draw based on neighbors. */
+function getSolidTileVariant(level: Level, tx: number, ty: number) {
+  const hasTop = isSolid(level, tx, ty + 1);
+  const hasBottom = isSolid(level, tx, ty - 1);
+  const hasLeft = isSolid(level, tx - 1, ty);
+  const hasRight = isSolid(level, tx + 1, ty);
+  
+  // Corners
+  if (!hasTop && !hasLeft) return TILES.SOLID_TL;
+  if (!hasTop && !hasRight) return TILES.SOLID_TR;
+  if (!hasBottom && !hasLeft) return TILES.SOLID_BL;
+  if (!hasBottom && !hasRight) return TILES.SOLID_BR;
+  
+  // Edges
+  if (!hasTop) return TILES.SOLID_TOP;
+  if (!hasBottom) return TILES.SOLID_BOTTOM;
+  if (!hasLeft) return TILES.SOLID_LEFT;
+  if (!hasRight) return TILES.SOLID_RIGHT;
+  
+  // Fill
+  return TILES.SOLID_FILL;
+}
+
+/** Draw a tile from the tileset. */
+function drawTile(
+  ctx: CanvasRenderingContext2D,
+  tileset: HTMLImageElement,
+  tileCoord: { tx: number; ty: number },
+  screenX: number,
+  screenY: number,
+  size: number,
+) {
+  ctx.drawImage(
+    tileset,
+    tileCoord.tx * TILE_SIZE,
+    tileCoord.ty * TILE_SIZE,
+    TILE_SIZE,
+    TILE_SIZE,
+    screenX,
+    screenY,
+    size,
+    size,
+  );
 }
 
 export function drawLevel(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
   const pal = paletteFor(level);
+  
+  // If tileset isn't loaded yet, fall back to old rendering
+  if (!tilesetImage || !tilesetImage.complete) {
+    drawLevelFallback(ctx, cam, level, pal);
+    return;
+  }
+
+  for (let ty = 0; ty < level.height; ty++) {
+    for (let tx = 0; tx < level.width; tx++) {
+      const id = level.tiles[ty * level.width + tx] as TileId;
+      if (!id) continue;
+
+      const p = worldToScreen(cam, tx, ty + 1);
+
+      if (id === TILE_SOLID) {
+        const variant = getSolidTileVariant(level, tx, ty);
+        drawTile(ctx, tilesetImage, variant, p.x, p.y, cam.ppt);
+      } else if (id === TILE_LEDGE) {
+        // Determine ledge variant based on neighbors
+        const hasLeft = tx > 0 && level.tiles[ty * level.width + (tx - 1)] === TILE_LEDGE;
+        const hasRight = tx < level.width - 1 && level.tiles[ty * level.width + (tx + 1)] === TILE_LEDGE;
+        
+        let ledgeVariant = TILES.LEDGE;
+        if (!hasLeft) ledgeVariant = TILES.LEDGE_LEFT;
+        else if (!hasRight) ledgeVariant = TILES.LEDGE_RIGHT;
+        
+        drawTile(ctx, tilesetImage, ledgeVariant, p.x, p.y, cam.ppt);
+      } else if (id === TILE_SPIKE) {
+        // Vary spike appearance
+        const spikeVariants = [TILES.SPIKE, TILES.SPIKE_DOUBLE, TILES.SPIKE_SHORT];
+        const variant = spikeVariants[(tx + ty * 3) % spikeVariants.length];
+        drawTile(ctx, tilesetImage, variant, p.x, p.y, cam.ppt);
+      }
+    }
+  }
+}
+
+/** Fallback rendering when tileset isn't loaded. */
+function drawLevelFallback(
+  ctx: CanvasRenderingContext2D,
+  cam: Camera2D,
+  level: Level,
+  pal: AtmospherePalette,
+) {
   const colors: Record<number, string> = {
     [TILE_SOLID]: pal.solid,
     [TILE_LEDGE]: pal.ledge,
