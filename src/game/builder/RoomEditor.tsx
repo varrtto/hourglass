@@ -115,7 +115,17 @@ export function RoomEditor() {
   const saveRoom = useCallback(() => {
     useEditorSessionStore.getState().setRoomDraft(docRef.current, false);
     useEditorSessionStore.getState().saveRoom();
-    setStatus("Room saved into level draft");
+    void useEditorSessionStore
+      .getState()
+      .saveLevel()
+      .then(() => {
+        setStatus(
+          useEditorSessionStore.getState().status ?? "Room saved",
+        );
+      })
+      .catch((err) => {
+        setStatus(err instanceof Error ? err.message : "Save failed");
+      });
   }, []);
 
   const pushUndo = useCallback((from: Level) => {

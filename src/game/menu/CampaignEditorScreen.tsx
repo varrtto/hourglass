@@ -25,13 +25,19 @@ export function CampaignEditorScreen() {
     queryKey: ["level-library"],
     queryFn: async (): Promise<LevelSummary[]> => {
       const levels = await listLevels();
+      const byId = new Map(levels.map((l) => [l.id, l]));
       return [
-        ...BUILTIN_LEVELS.map((l) => ({
-          id: l.id,
-          title: `${l.title} (built-in)`,
-          updatedAt: "",
-          builtin: true,
-        })),
+        ...BUILTIN_LEVELS.map((l) => {
+          const override = byId.get(l.id);
+          return {
+            id: l.id,
+            title: override
+              ? `${l.title} (edited)`
+              : `${l.title} (built-in)`,
+            updatedAt: override?.updatedAt ?? "",
+            builtin: true,
+          };
+        }),
         ...levels.filter((l) => !isBuiltinLevel(l.id)),
       ];
     },

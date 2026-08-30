@@ -124,6 +124,19 @@ export const useEditorSessionStore = create<EditorSessionState>((set, get) => ({
   },
 
   openLevel: async (id) => {
+    const fromDb = await getLevel(id);
+    if (fromDb) {
+      set({
+        levelDraft: cloneManifest(fromDb),
+        dirtyLevel: false,
+        roomDraft: null,
+        dirtyRoom: false,
+        status: isBuiltinLevel(id)
+          ? "Opened edited built-in (overrides shipped files)"
+          : null,
+      });
+      return;
+    }
     if (isBuiltinLevel(id)) {
       const manifest = await fetchLevelManifest(id);
       set({
@@ -131,19 +144,11 @@ export const useEditorSessionStore = create<EditorSessionState>((set, get) => ({
         dirtyLevel: false,
         roomDraft: null,
         dirtyRoom: false,
-        status: "Opened built-in level (save as a copy to edit permanently)",
+        status: "Opened built-in level — Save writes an override in this browser",
       });
       return;
     }
-    const fromDb = await getLevel(id);
-    if (!fromDb) throw new Error(`Level ${id} not found`);
-    set({
-      levelDraft: cloneManifest(fromDb),
-      dirtyLevel: false,
-      roomDraft: null,
-      dirtyRoom: false,
-      status: null,
-    });
+    throw new Error(`Level ${id} not found`);
   },
 
   newLevel: () => {
@@ -159,22 +164,13 @@ export const useEditorSessionStore = create<EditorSessionState>((set, get) => ({
   saveLevel: async () => {
     const draft = get().levelDraft;
     if (!draft) return;
-    if (isBuiltinLevel(draft.id)) {
-      const copy = cloneManifest({
-        ...draft,
-        id: `${draft.id}-custom`,
-        title: `${draft.title} (custom)`,
-      });
-      await upsertLevel(copy);
-      set({
-        levelDraft: copy,
-        dirtyLevel: false,
-        status: "Saved as custom copy (built-in is read-only)",
-      });
-      return;
-    }
     await upsertLevel(draft);
-    set({ dirtyLevel: false, status: "Level saved" });
+    set({
+      dirtyLevel: false,
+      status: isBuiltinLevel(draft.id)
+        ? "Level saved (overrides built-in in this browser)"
+        : "Level saved",
+    });
   },
 
   openRoom: async (roomId) => {

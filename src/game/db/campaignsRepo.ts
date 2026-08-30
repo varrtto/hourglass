@@ -4,7 +4,6 @@ import { getLevel, upsertLevel } from "./levelsRepo";
 import {
   BUILTIN_LEVEL_IDS,
   DEFAULT_CAMPAIGN_ID,
-  isBuiltinLevel,
   nowIso,
   type Campaign,
   type CampaignPackage,
@@ -154,7 +153,6 @@ export async function exportCampaignPackage(id: string): Promise<CampaignPackage
   if (!campaign) throw new Error(`Campaign ${id} not found`);
   const levels: LevelManifest[] = [];
   for (const levelId of campaign.levelIds) {
-    if (isBuiltinLevel(levelId)) continue;
     const level = await getLevel(levelId);
     if (level) levels.push(cloneManifest(level));
   }
@@ -194,15 +192,8 @@ export async function importCampaignPackage(text: string): Promise<Campaign> {
 
   for (const level of parsed.levels) {
     if (!level?.id || !level.beats) continue;
-    let manifest = cloneManifest(level);
-    if (isBuiltinLevel(manifest.id)) {
-      manifest = {
-        ...manifest,
-        id: `${manifest.id}-import`,
-        title: `${manifest.title} (import)`,
-      };
-    }
-    await upsertLevel(manifest);
+    // Built-in ids are stored as browser overrides (same as the room editor).
+    await upsertLevel(cloneManifest(level));
   }
 
   let id = parsed.campaign.id;

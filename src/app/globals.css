@@ -37,6 +37,65 @@ body {
   }
 }
 
+@keyframes hourglass-room-title {
+  0% {
+    opacity: 0;
+    transform: translateY(0.35rem);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  74% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-0.15rem);
+  }
+}
+
+.hourglass-room-title {
+  animation: hourglass-room-title 2.7s ease forwards;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75);
+}
+
+@keyframes hourglass-level-title {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  14% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+}
+
+.hourglass-level-title {
+  animation: hourglass-level-title 2.8s ease forwards;
+  text-shadow: 0 4px 28px rgba(0, 0, 0, 0.85);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hourglass-room-title {
+    animation: none;
+    opacity: 1;
+  }
+  .hourglass-level-title {
+    animation: none;
+    opacity: 1;
+  }
+}
+
 .hourglass-crawl-mask {
   -webkit-mask-image: linear-gradient(
     to top,
