@@ -6,7 +6,7 @@ import { InputController } from "../input";
 import { createWorld, snapshotDebug, stepWorld } from "../player/fsm";
 import type { Level, World } from "../types";
 import { useGameStore } from "../store";
-import { drawBackdrop, drawExits, drawLevel, type Camera2D } from "./LevelView";
+import { drawBackdrop, drawExits, drawLevel, ensureTileset, type Camera2D } from "./LevelView";
 import { drawBats, drawKeres, drawPlayer, drawProjectiles } from "./PlayerView";
 import { playSfx } from "../audio/sfx";
 import type { SpriteManifest } from "../queries";
@@ -87,6 +87,11 @@ export function GameCanvas({
     img.src = sprites.image;
     sheetRef.current = img;
   }, [sprites]);
+
+  // Load tileset on mount
+  useEffect(() => {
+    ensureTileset().catch(console.error);
+  }, []);
 
   useEffect(() => {
     camRef.current = { x: level.spawn.x, y: level.spawn.y + 2 };

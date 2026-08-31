@@ -1,24 +1,11 @@
-import type { AtmosphereId, Level, TileId } from "../types";
-import { TILE_LEDGE, TILE_SOLID, TILE_SPIKE } from "../types";
-
-type AtmospherePalette = {
-  sky: string;
-  room: string;
-  inner: string;
-  columns: string;
-  solid: string;
-  ledge: string;
-  spike: string;
-  void: string;
-  glow0: string;
-  glow1: string;
-  stone: string;
-  stoneDark: string;
-  lintel: string;
-  lintelHi: string;
-  arch: string;
-  key: string;
-};
+import type { AtmosphereId, Level } from "../types";
+import {
+  ensureTileset as loadTileset,
+  renderBackdrop,
+  renderLevelTiles,
+  renderLevelFallback,
+  type AtmospherePalette,
+} from "./tileRenderer";
 
 const ATMOSPHERES: Record<AtmosphereId, AtmospherePalette> = {
   hades: {
@@ -157,64 +144,23 @@ export function worldToScreen(
   };
 }
 
+/** Re-export tileset loader for GameCanvas. */
+export const ensureTileset = loadTileset;
+
+/** Draw atmospheric backdrop with gradients, columns, and particles. */
 export function drawBackdrop(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
   const pal = paletteFor(level);
-  ctx.fillStyle = pal.sky;
-  ctx.fillRect(0, 0, cam.screenW, cam.screenH);
-
-  const origin = worldToScreen(cam, 0, level.height);
-  const w = level.width * cam.ppt;
-  const h = level.height * cam.ppt;
-
-  ctx.fillStyle = pal.room;
-  ctx.fillRect(origin.x - 4 * cam.ppt, origin.y - 4 * cam.ppt, w + 8 * cam.ppt, h + 8 * cam.ppt);
-
-  ctx.fillStyle = pal.inner;
-  ctx.fillRect(
-    origin.x + level.width * 0.15 * cam.ppt,
-    origin.y + level.height * 0.2 * cam.ppt,
-    level.width * 0.7 * cam.ppt,
-    level.height * 0.45 * cam.ppt,
-  );
-
-  ctx.fillStyle = pal.columns;
-  for (let i = 0; i < Math.ceil(level.width / 8); i++) {
-    const x = origin.x + (4 + i * 8) * cam.ppt - 0.275 * cam.ppt;
-    ctx.fillRect(x, origin.y - cam.ppt, 0.55 * cam.ppt, h + 2 * cam.ppt);
-  }
+  renderBackdrop(ctx, cam, level, pal);
 }
 
+/** Draw level tiles (solid blocks, ledges, spikes). */
 export function drawLevel(ctx: CanvasRenderingContext2D, cam: Camera2D, level: Level) {
   const pal = paletteFor(level);
-  const colors: Record<number, string> = {
-    [TILE_SOLID]: pal.solid,
-    [TILE_LEDGE]: pal.ledge,
-    [TILE_SPIKE]: pal.spike,
-  };
-
-  for (let ty = 0; ty < level.height; ty++) {
-    for (let tx = 0; tx < level.width; tx++) {
-      const id = level.tiles[ty * level.width + tx] as TileId;
-      if (!id) continue;
-      const color = colors[id] ?? "#888";
-      ctx.fillStyle = color;
-
-      if (id === TILE_LEDGE) {
-        const p = worldToScreen(cam, tx, ty + 1);
-        ctx.fillRect(p.x, p.y + 0.14 * cam.ppt, cam.ppt, 0.28 * cam.ppt);
-      } else if (id === TILE_SPIKE) {
-        const p = worldToScreen(cam, tx + 0.075, ty + 0.7);
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(p.x + 0.425 * cam.ppt, p.y - 0.7 * cam.ppt);
-        ctx.lineTo(p.x + 0.85 * cam.ppt, p.y);
-        ctx.closePath();
-        ctx.fill();
-      } else if (id === TILE_SOLID) {
-        const p = worldToScreen(cam, tx, ty + 1);
-        ctx.fillRect(p.x, p.y, cam.ppt, cam.ppt);
-      }
-    }
+  const rendered = renderLevelTiles(ctx, cam, level);
+  
+  // Fallback to debug art if tileset isn't loaded
+  if (!rendered) {
+    renderLevelFallback(ctx, cam, level, pal);
   }
 }
 
