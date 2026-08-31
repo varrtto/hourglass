@@ -36,79 +36,14 @@
         "60:00",
         "Orpheus stepped into the Underworld."
       ],
-      "next": "entrance",
+      "next": "gate",
       "durationSec": 90
     },
-    "entrance": {
+    "gate": {
       "kind": "room",
-      "id": "entrance",
-      "name": "The Threshold",
-      "roomId": "entrance",
-      "music": "Moonspell - Vampiria.mid",
-      "onExit": {
-        "finish": "verse1"
-      }
-    },
-    "verse1": {
-      "kind": "scroll",
-      "id": "verse1",
-      "name": "Into Darkness",
-      "text": [
-        "The gate closed behind him.",
-        "Stone stairs led down into shadow.",
-        "Somewhere below, a growl echoed."
-      ],
-      "next": "descent",
-      "durationSec": 18
-    },
-    "descent": {
-      "kind": "room",
-      "id": "descent",
-      "name": "The Descent",
-      "roomId": "descent",
-      "music": "Moonspell - Vampiria.mid",
-      "onExit": {
-        "finish": "verse2"
-      }
-    },
-    "verse2": {
-      "kind": "scroll",
-      "id": "verse2",
-      "name": "The Gallery",
-      "text": [
-        "He passed through halls carved by hands older than memory.",
-        "The dead had walked these stones for a thousand years."
-      ],
-      "next": "gallery",
-      "durationSec": 16
-    },
-    "gallery": {
-      "kind": "room",
-      "id": "gallery",
-      "name": "The Gallery of Shades",
-      "roomId": "gallery",
-      "music": "Moonspell - Vampiria.mid",
-      "onExit": {
-        "finish": "verse3"
-      }
-    },
-    "verse3": {
-      "kind": "scroll",
-      "id": "verse3",
-      "name": "Cerberus Waits",
-      "text": [
-        "Ahead, the passage opened into a vast chamber.",
-        "Three pairs of eyes gleamed in the dark.",
-        "The hound was waiting."
-      ],
-      "next": "cerberus",
-      "durationSec": 18
-    },
-    "cerberus": {
-      "kind": "room",
-      "id": "cerberus",
-      "name": "The Chamber of Cerberus",
-      "roomId": "cerberus",
+      "id": "gate",
+      "name": "The Gate",
+      "roomId": "gate",
       "music": "Moonspell - Vampiria.mid",
       "onExit": {
         "finish": "outro"
