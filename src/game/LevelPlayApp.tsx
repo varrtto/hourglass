@@ -18,9 +18,12 @@ import { useGameStore } from "./store";
 import { GameCanvas } from "./render/GameCanvas";
 import { InventoryHud } from "./render/InventoryHud";
 import { TimeLimitHud } from "./render/TimeLimitHud";
+import { RoomTitleOverlay } from "./render/RoomTitleOverlay";
+import { LevelTitleScreen } from "./render/LevelTitleScreen";
 import { TouchControls } from "./TouchControls";
 import { MenuBackdrop } from "./menu/MenuBackdrop";
 import { ScrollingText } from "./menu/ScrollingText";
+import { beatLabel } from "./level/types";
 
 export function LevelPlayApp() {
   const levelId = useGameStore((s) => s.levelId);
@@ -40,11 +43,22 @@ export function LevelPlayApp() {
   const [directorState, setDirectorState] = useState<DirectorState | null>(
     null,
   );
+  /** False until the level title card finishes. */
+  const [levelIntroReady, setLevelIntroReady] = useState(false);
+  const playSessionKey = `${levelId}|${playtestRevision}|${playtestBeatId ?? ""}`;
+  const [playSession, setPlaySession] = useState(playSessionKey);
   const directorRef = useRef<LevelDirector | null>(null);
   const mobile = useMobile();
   const portrait = usePortrait();
   const sideways = mobile && portrait;
   const useDraft = playtestFromLevelEditor && draftManifest != null;
+
+  // Reset intro / director when the play session changes (adjusting state during render).
+  if (playSession !== playSessionKey) {
+    setPlaySession(playSessionKey);
+    setLevelIntroReady(false);
+    setDirectorState(null);
+  }
 
   const manifestQuery = useQuery({
     queryKey: [...queryKeys.levelManifest(levelId), "resolved"],
@@ -58,6 +72,10 @@ export function LevelPlayApp() {
   });
 
   const manifest = useDraft ? draftManifest : manifestQuery.data;
+
+  const finishLevelIntro = useCallback(() => {
+    setLevelIntroReady(true);
+  }, []);
 
   const loadRoom = useCallback(
     async (roomId: string) => {
@@ -75,7 +93,7 @@ export function LevelPlayApp() {
   }, [input]);
 
   useEffect(() => {
-    if (!manifest) return;
+    if (!manifest || !levelIntroReady) return;
     let alive = true;
     const director = new LevelDirector(
       manifest,
@@ -117,6 +135,7 @@ export function LevelPlayApp() {
   }, [
     manifest,
     loadRoom,
+    levelIntroReady,
     playtestBeatId,
     playtestRevision,
     playtestFromLevelEditor,
@@ -154,17 +173,24 @@ export function LevelPlayApp() {
 
   useEffect(() => {
     if (directorState?.playMode !== "complete") return;
-    if (playtestFromLevelEditor) {
-      setPlaytestFromLevelEditor(false);
-      setScreen("levelEditor");
-      return;
-    }
-    const result = advanceCampaignOrFinish();
-    if (result === "next") {
-      setDirectorState(null);
-      return;
-    }
-    setScreen("menu");
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      if (playtestFromLevelEditor) {
+        setPlaytestFromLevelEditor(false);
+        setScreen("levelEditor");
+        return;
+      }
+      const result = advanceCampaignOrFinish();
+      if (result === "next") {
+        setDirectorState(null);
+        return;
+      }
+      setScreen("menu");
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [
     directorState?.playMode,
     playtestFromLevelEditor,
@@ -202,6 +228,12 @@ export function LevelPlayApp() {
 
   const room = directorState?.room;
   const playMode = directorState?.playMode ?? "room";
+  const roomTitle = useMemo(() => {
+    if (!directorState || playMode !== "room") return null;
+    const beat = directorState.manifest.beats[directorState.beatId];
+    if (!beat || beat.kind !== "room") return null;
+    return beatLabel(beat);
+  }, [directorState, playMode]);
 
   return (
     <div
@@ -215,6 +247,12 @@ export function LevelPlayApp() {
         <p className="p-6 font-mono text-amber-100">Loading level…</p>
       ) : failed || !manifest ? (
         <p className="p-6 font-mono text-red-300">Failed to load level.</p>
+      ) : !levelIntroReady ? (
+        <LevelTitleScreen
+          key={`${levelId}-${playtestRevision}`}
+          title={manifest.title || levelId}
+          onDone={finishLevelIntro}
+        />
       ) : playMode === "scroll" && scrollBeat ? (
         <MenuBackdrop dim>
           <ScrollingText
@@ -252,6 +290,13 @@ export function LevelPlayApp() {
         <p className="pointer-events-none absolute bottom-16 left-1/2 z-20 max-w-lg -translate-x-1/2 text-center font-display text-lg tracking-wide text-amber-50/90">
           {cinematicCaption}
         </p>
+      ) : null}
+
+      {room && playMode === "room" && roomTitle && directorState ? (
+        <RoomTitleOverlay
+          key={directorState.beatId}
+          title={roomTitle}
+        />
       ) : null}
 
       {directorState?.playMode !== "complete" &&

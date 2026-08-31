@@ -13,12 +13,12 @@ export async function listLevels(): Promise<LevelSummary[]> {
     id: r.id,
     title: r.title,
     updatedAt: r.updated_at,
-    builtin: false,
+    builtin: isBuiltinLevel(r.id),
   }));
 }
 
+/** Returns a DB row if present — including overrides of built-in levels. */
 export async function getLevel(id: string): Promise<LevelManifest | null> {
-  if (isBuiltinLevel(id)) return null;
   const db = await getDb();
   const row = queryOne<{ json: string }>(db, "SELECT json FROM levels WHERE id = ?", [
     id,
@@ -28,9 +28,6 @@ export async function getLevel(id: string): Promise<LevelManifest | null> {
 }
 
 export async function upsertLevel(manifest: LevelManifest): Promise<void> {
-  if (isBuiltinLevel(manifest.id)) {
-    throw new Error("Cannot overwrite a built-in level in the database");
-  }
   const db = await getDb();
   const json = JSON.stringify(cloneManifest(manifest));
   const ts = nowIso();
@@ -42,13 +39,15 @@ export async function upsertLevel(manifest: LevelManifest): Promise<void> {
   await persistDb(db);
 }
 
+/**
+ * Delete a custom level, or clear a built-in override (shipped files remain).
+ */
 export async function deleteLevel(id: string): Promise<void> {
-  if (isBuiltinLevel(id)) {
-    throw new Error("Cannot delete a built-in level");
-  }
   const db = await getDb();
   db.run("DELETE FROM levels WHERE id = ?", [id]);
-  db.run("DELETE FROM campaign_levels WHERE level_id = ?", [id]);
+  if (!isBuiltinLevel(id)) {
+    db.run("DELETE FROM campaign_levels WHERE level_id = ?", [id]);
+  }
   await persistDb(db);
 }
 

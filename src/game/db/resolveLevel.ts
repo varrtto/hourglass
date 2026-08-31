@@ -1,20 +1,18 @@
 import type { LevelManifest } from "../level/types";
 import { cloneManifest } from "../level/manifest";
-import { isBuiltinLevel } from "./types";
 import { getLevel } from "./levelsRepo";
 import { fetchLevelManifest, fetchRoomMap } from "../queries";
 import { tiledToLevel } from "../world/loadLevel";
 
-/** Load a level for play: built-in from /public, otherwise SQLite. */
+/**
+ * Load a level for play: SQLite override first (including edited built-ins),
+ * then shipped `/public/levels` files.
+ */
 export async function resolveLevelManifest(
   levelId: string,
 ): Promise<LevelManifest> {
-  if (isBuiltinLevel(levelId)) {
-    return fetchLevelManifest(levelId);
-  }
   const fromDb = await getLevel(levelId);
   if (fromDb) return cloneManifest(fromDb);
-  // Fallback: try static path (user may have shipped extra levels).
   return fetchLevelManifest(levelId);
 }
 
